@@ -2,6 +2,7 @@
 #include "common/parsing.h"
 #include "common/printing.h"
 #include "common/jsonconfig.h"
+#include "common/temps.h"
 #include "detection/host/host.h"
 #include "detection/gpu/gpu.h"
 #include "modules/gpu/gpu.h"
@@ -44,7 +45,7 @@ static void printGPUResult(FFGPUOptions* options, uint8_t index, const FFGPUResu
         if(gpu->temperature == gpu->temperature) //FF_GPU_TEMP_UNSET
         {
             ffStrbufAppendS(&output, " - ");
-            ffParseTemperature(gpu->temperature, &output);
+            ffTempsAppendNum(gpu->temperature, &output, options->tempConfig);
         }
 
         if(gpu->dedicated.total != FF_GPU_VMEM_SIZE_UNSET && gpu->dedicated.total != 0)
@@ -72,11 +73,13 @@ static void printGPUResult(FFGPUOptions* options, uint8_t index, const FFGPUResu
     }
     else
     {
-        ffPrintFormat(FF_GPU_MODULE_NAME, index, &options->moduleArgs, FF_GPU_NUM_FORMAT_ARGS, (FFformatarg[]){
+        FF_STRBUF_AUTO_DESTROY tempStr = ffStrbufCreate();
+        ffTempsAppendNum(gpu->temperature, &tempStr, options->tempConfig);
+        FF_PRINT_FORMAT_CHECKED(FF_GPU_MODULE_NAME, index, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, FF_GPU_NUM_FORMAT_ARGS, ((FFformatarg[]) {
             {FF_FORMAT_ARG_TYPE_STRBUF, &gpu->vendor},
             {FF_FORMAT_ARG_TYPE_STRBUF, &gpu->name},
             {FF_FORMAT_ARG_TYPE_STRBUF, &gpu->driver},
-            {FF_FORMAT_ARG_TYPE_DOUBLE, &gpu->temperature},
+            {FF_FORMAT_ARG_TYPE_STRBUF, &tempStr},
             {FF_FORMAT_ARG_TYPE_INT, &gpu->coreCount},
             {FF_FORMAT_ARG_TYPE_STRING, type},
             {FF_FORMAT_ARG_TYPE_UINT64, &gpu->dedicated.total},
@@ -85,7 +88,7 @@ static void printGPUResult(FFGPUOptions* options, uint8_t index, const FFGPUResu
             {FF_FORMAT_ARG_TYPE_UINT64, &gpu->shared.used},
             {FF_FORMAT_ARG_TYPE_STRBUF, &gpu->platformApi},
             {FF_FORMAT_ARG_TYPE_DOUBLE, &gpu->frequency},
-        });
+        }));
     }
 }
 
@@ -95,7 +98,7 @@ void ffPrintGPU(FFGPUOptions* options)
     const char* error = ffDetectGPU(options, &gpus);
     if (error)
     {
-        ffPrintError(FF_GPU_MODULE_NAME, 0, &options->moduleArgs, "%s", error);
+        ffPrintError(FF_GPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
         return;
     }
 
@@ -117,7 +120,7 @@ void ffPrintGPU(FFGPUOptions* options)
         printGPUResult(options, selectedGPUs.length == 1 ? 0 : (uint8_t) (i + 1), * (const FFGPUResult**) ffListGet(&selectedGPUs, i));
 
     if(selectedGPUs.length == 0)
-        ffPrintError(FF_GPU_MODULE_NAME, 0, &options->moduleArgs, "No GPUs found");
+        ffPrintError(FF_GPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "No GPUs found");
 
     FF_LIST_FOR_EACH(FFGPUResult, gpu, gpus)
     {
@@ -146,11 +149,8 @@ bool ffParseGPUCommandOptions(FFGPUOptions* options, const char* key, const char
         return true;
     }
 
-    if (ffStrEqualsIgnCase(subKey, "temp"))
-    {
-        options->temp = ffOptionParseBoolean(value);
+    if (ffTempsParseCommandOptions(key, subKey, value, &options->temp, &options->tempConfig))
         return true;
-    }
 
     if (ffStrEqualsIgnCase(subKey, "hide-type"))
     {
@@ -181,11 +181,8 @@ void ffParseGPUJsonObject(FFGPUOptions* options, yyjson_val* module)
         if (ffJsonConfigParseModuleArgs(key, val, &options->moduleArgs))
             continue;
 
-        if (ffStrEqualsIgnCase(key, "temp"))
-        {
-            options->temp = yyjson_get_bool(val);
+        if (ffTempsParseJsonObject(key, val, &options->temp, &options->tempConfig))
             continue;
-        }
 
         if (ffStrEqualsIgnCase(key, "driverSpecific"))
         {
@@ -209,7 +206,7 @@ void ffParseGPUJsonObject(FFGPUOptions* options, yyjson_val* module)
                 {},
             });
             if (error)
-                ffPrintError(FF_GPU_MODULE_NAME, 0, &options->moduleArgs, "Invalid %s value: %s", key, error);
+                ffPrintError(FF_GPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Invalid %s value: %s", key, error);
             else
                 options->hideType = (FFGPUType) value;
             continue;
@@ -218,7 +215,7 @@ void ffParseGPUJsonObject(FFGPUOptions* options, yyjson_val* module)
         if (ffPercentParseJsonObject(key, val, &options->percent))
             continue;
 
-        ffPrintError(FF_GPU_MODULE_NAME, 0, &options->moduleArgs, "Unknown JSON key %s", key);
+        ffPrintError(FF_GPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", key);
     }
 }
 
@@ -235,8 +232,7 @@ void ffGenerateGPUJsonConfig(FFGPUOptions* options, yyjson_mut_doc* doc, yyjson_
     if (options->forceVulkan != defaultOptions.forceVulkan)
         yyjson_mut_obj_add_bool(doc, module, "forceVulkan", options->forceVulkan);
 
-    if (options->temp != defaultOptions.temp)
-        yyjson_mut_obj_add_bool(doc, module, "temp", options->temp);
+    ffTempsGenerateJsonConfig(doc, module, defaultOptions.temp, defaultOptions.tempConfig, options->temp, options->tempConfig);
 
     if (options->hideType != defaultOptions.hideType)
     {
@@ -336,7 +332,7 @@ void ffGenerateGPUJsonResult(FFGPUOptions* options, yyjson_mut_doc* doc, yyjson_
 
 void ffPrintGPUHelpFormat(void)
 {
-    ffPrintModuleFormatHelp(FF_GPU_MODULE_NAME, "{1} {2}", FF_GPU_NUM_FORMAT_ARGS, (const char* []) {
+    FF_PRINT_MODULE_FORMAT_HELP_CHECKED(FF_GPU_MODULE_NAME, "{1} {2}", FF_GPU_NUM_FORMAT_ARGS, ((const char* []) {
         "GPU vendor",
         "GPU name",
         "GPU driver",
@@ -349,7 +345,7 @@ void ffPrintGPUHelpFormat(void)
         "GPU used shared memory",
         "The platform API that GPU supports",
         "Current frequency in GHz",
-    });
+    }));
 }
 
 void ffInitGPUOptions(FFGPUOptions* options)
@@ -371,7 +367,8 @@ void ffInitGPUOptions(FFGPUOptions* options)
     options->forceVulkan = false;
     options->temp = false;
     options->hideType = FF_GPU_TYPE_UNKNOWN;
-    options->percent = (FFPercentConfig) { 50, 80 };
+    options->tempConfig = (FFColorRangeConfig) { 60, 80 };
+    options->percent = (FFColorRangeConfig) { 50, 80 };
 }
 
 void ffDestroyGPUOptions(FFGPUOptions* options)

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.8.3
+    VERSION 2.9.1
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -76,6 +76,10 @@ option(ENABLE_PROPRIETARY_GPU_DRIVER_API "Enable proprietary GPU driver API (NVM
 option(BUILD_TESTS "Build tests" OFF) # Also create test executables
 option(SET_TWEAK "Add tweak to project version" ON) # This is set to off by github actions for release builds
 
+if (LINUX)
+    set(CUSTOM_PCI_IDS_PATH "" CACHE STRING "Custom path to file pci.ids, defaults to `/usr/share/hwdata/pci.ids`")
+endif()
+
 ####################
 # Compiler options #
 ####################
@@ -118,7 +122,7 @@ if(ENABLE_ASAN)
     set(FASTFETCH_FLAGS_DEBUG "${FASTFETCH_FLAGS_DEBUG} -fsanitize=address")
 endif()
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FASTFETCH_FLAGS_DEBUG}")
-set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${FASTFETCH_FLAGS_DEBUG}")
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${FASTFETCH_FLAGS_DEBUG} -fstack-protector-all -fno-delete-null-pointer-checks")
 if(NOT WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -rdynamic")
 endif()
@@ -229,10 +233,9 @@ endif()
 
 fastfetch_encode_c_string("${DATATEXT_JSON_HELP}" DATATEXT_JSON_HELP)
 fastfetch_load_text(src/data/structure.txt DATATEXT_STRUCTURE)
-fastfetch_load_text(src/data/help.txt DATATEXT_HELP)
+fastfetch_load_text(src/data/help_footer.txt DATATEXT_HELP_FOOTER)
 fastfetch_load_text(src/data/help_color.txt DATATEXT_HELP_COLOR)
 fastfetch_load_text(src/data/help_format.txt DATATEXT_HELP_FORMAT)
-fastfetch_load_text(src/data/help_config.txt DATATEXT_HELP_CONFIG)
 
 configure_file(src/fastfetch_config.h.in fastfetch_config.h @ONLY)
 configure_file(src/fastfetch_datatext.h.in fastfetch_datatext.h @ONLY)
@@ -277,6 +280,7 @@ set(LIBFASTFETCH_SRC
     src/common/printing.c
     src/common/properties.c
     src/common/settings.c
+    src/common/temps.c
     src/detection/chassis/chassis.c
     src/detection/cpu/cpu.c
     src/detection/cpuusage/cpuusage.c
@@ -695,6 +699,7 @@ check_function_exists(wcwidth HAVE_WCWIDTH)
 if(NOT HAVE_WCWIDTH)
     list(APPEND LIBFASTFETCH_SRC src/3rdparty/mk_wcwidch/wcwidth.c)
 endif()
+check_function_exists(statx HAVE_STATX)
 
 if(ENABLE_SYSTEM_YYJSON)
     find_package(yyjson)
@@ -724,8 +729,8 @@ if(yyjson_FOUND)
 else()
     # Used for dlopen finding dylibs installed by homebrew
     # `/opt/homebrew/lib` is not on in dlopen search path by default
-    if(APPLE AND DEFINED ENV{HOMEBREW_PREFIX})
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,$ENV{HOMEBREW_PREFIX}/lib")
+    if(APPLE)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,/opt/homebrew/lib -Wl,-rpath,/usr/local/lib")
     endif()
 endif()
 
@@ -758,8 +763,17 @@ elseif(APPLE)
     target_compile_definitions(libfastfetch PUBLIC _DARWIN_C_SOURCE)
 endif()
 
+if(HAVE_STATX)
+    target_compile_definitions(libfastfetch PRIVATE FF_HAVE_STATX)
+endif()
+
 if(HAVE_WCWIDTH)
     target_compile_definitions(libfastfetch PRIVATE FF_HAVE_WCWIDTH)
+endif()
+
+if(NOT "${CUSTOM_PCI_IDS_PATH}" STREQUAL "")
+    message(STATUS "Custom file path of pci.ids: ${CUSTOM_PCI_IDS_PATH}")
+    target_compile_definitions(libfastfetch PRIVATE FF_CUSTOM_PCI_IDS_PATH=${CUSTOM_PCI_IDS_PATH})
 endif()
 
 function(ff_lib_enable VARNAME PKGCONFIG_NAMES CMAKE_NAME)

@@ -17,7 +17,10 @@
 static void detectAndroid(FFCPUResult* cpu)
 {
     if (cpu->name.length == 0)
+    {
         ffSettingsGetAndroidProperty("ro.soc.model", &cpu->name);
+        ffStrbufClear(&cpu->vendor); // We usually detect the vendor of CPU core as ARM, but instead we want the vendor of SOC
+    }
     if (cpu->vendor.length == 0)
     {
         if (!ffSettingsGetAndroidProperty("ro.soc.manufacturer", &cpu->vendor))
@@ -85,30 +88,70 @@ static const char* parseCpuInfo(FFCPUResult* cpu, FFstrbuf* physicalCoresBuffer,
     return NULL;
 }
 
-static double getGHz(const char* file)
+static double getFrequency(FFstrbuf* basePath, const char* cpuinfoFileName, const char* scalingFileName, FFstrbuf* buffer)
 {
-    FF_STRBUF_AUTO_DESTROY content = ffStrbufCreate();
-    if(ffAppendFileBuffer(file, &content))
+    uint32_t baseLen = basePath->length;
+    ffStrbufAppendS(basePath, cpuinfoFileName);
+    bool ok = ffReadFileBuffer(basePath->chars, buffer);
+    ffStrbufSubstrBefore(basePath, baseLen);
+    if (ok)
+        return ffStrbufToDouble(buffer) / 1e6;
+
+    if (scalingFileName)
     {
-        double herz = ffStrbufToDouble(&content);
-
-        //ffStrbufToDouble failed
-        if(herz != herz)
-            return 0;
-
-        herz /= 1000.0; //to MHz
-        return herz / 1000.0; //to GHz
+        ffStrbufAppendS(basePath, scalingFileName);
+        ok = ffReadFileBuffer(basePath->chars, buffer);
+        ffStrbufSubstrBefore(basePath, baseLen);
+        if (ok)
+            return ffStrbufToDouble(buffer) / 1e6;
     }
-    return 0;
+
+    return 0.0/0.0;
 }
 
-static double getFrequency(const char* info, const char* scaling)
+static bool detectFrequency(FFCPUResult* cpu)
 {
-    double frequency = getGHz(info);
-    if(frequency > 0.0)
-        return frequency;
+    FF_STRBUF_AUTO_DESTROY path = ffStrbufCreateS("/sys/devices/system/cpu/cpufreq/");
+    FF_AUTO_CLOSE_DIR DIR* dir = opendir(path.chars);
+    if (!dir) return false;
 
-    return getGHz(scaling);
+    FF_STRBUF_AUTO_DESTROY buffer = ffStrbufCreate();
+    uint32_t baseLen = path.length;
+
+    struct dirent* entry;
+    while((entry = readdir(dir)) != NULL)
+    {
+        if (ffStrStartsWith(entry->d_name, "policy") && isdigit(entry->d_name[strlen("policy")]))
+        {
+            ffStrbufAppendS(&path, entry->d_name);
+            double fbase = getFrequency(&path, "/base_frequency", NULL, &buffer);
+            if (fbase == fbase)
+            {
+                if (cpu->frequencyBase == cpu->frequencyBase)
+                    cpu->frequencyBase = cpu->frequencyBase > fbase ? cpu->frequencyBase : fbase;
+                else
+                    cpu->frequencyBase = fbase;
+            }
+            double fmax = getFrequency(&path, "/cpuinfo_max_freq", "/scaling_max_freq", &buffer);
+            if (fmax == fmax)
+            {
+                if (cpu->frequencyMax == cpu->frequencyMax)
+                    cpu->frequencyMax = cpu->frequencyMax > fmax ? cpu->frequencyMax : fmax;
+                else
+                    cpu->frequencyMax = fmax;
+            }
+            double fmin = getFrequency(&path, "/cpuinfo_min_freq", "/scaling_min_freq", &buffer);
+            if (fmin == fmin)
+            {
+                if (cpu->frequencyMin == cpu->frequencyMin)
+                    cpu->frequencyMin = cpu->frequencyMin < fmin ? cpu->frequencyMin : fmin;
+                else
+                    cpu->frequencyMin = fmin;
+            }
+            ffStrbufSubstrBefore(&path, baseLen);
+        }
+    }
+    return true;
 }
 
 static double detectCPUTemp(void)
@@ -204,16 +247,8 @@ const char* ffDetectCPUImpl(const FFCPUOptions* options, FFCPUResult* cpu)
     cpu->coresOnline = (uint16_t) get_nprocs();
     cpu->coresPhysical = (uint16_t) ffStrbufToUInt(&physicalCoresBuffer, cpu->coresLogical);
 
-    #define BP "/sys/devices/system/cpu/cpufreq/policy0/"
-    if(ffPathExists(BP, FF_PATHTYPE_DIRECTORY))
-    {
-        cpu->frequencyMin = getFrequency(BP"cpuinfo_min_freq", BP"scaling_min_freq");
-        cpu->frequencyMax = getFrequency(BP"cpuinfo_max_freq", BP"scaling_max_freq");
-    }
-    else
-    {
-        cpu->frequencyMin = cpu->frequencyMax = ffStrbufToDouble(&cpuMHz) / 1000;
-    }
+    if (!detectFrequency(cpu) || cpu->frequencyBase != cpu->frequencyBase)
+        cpu->frequencyBase = ffStrbufToDouble(&cpuMHz) / 1000;
 
     if(cpuUarch.length > 0)
     {

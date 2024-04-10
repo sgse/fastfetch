@@ -1,14 +1,13 @@
 #include "common/printing.h"
 #include "common/jsonconfig.h"
+#include "common/time.h"
 #include "detection/users/users.h"
 #include "modules/users/users.h"
 #include "util/stringUtils.h"
 
-#include <time.h>
-
 #pragma GCC diagnostic ignored "-Wformat" // warning: unknown conversion type character 'F' in format
 
-#define FF_USERS_NUM_FORMAT_ARGS 1
+#define FF_USERS_NUM_FORMAT_ARGS 5
 
 void ffPrintUsers(FFUsersOptions* options)
 {
@@ -18,13 +17,13 @@ void ffPrintUsers(FFUsersOptions* options)
 
     if(error)
     {
-        ffPrintError(FF_USERS_MODULE_NAME, 0, &options->moduleArgs, "%s", error);
+        ffPrintError(FF_USERS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
         return;
     }
 
     if(users.length == 0)
     {
-        ffPrintError(FF_USERS_MODULE_NAME, 0, &options->moduleArgs, "%s", "Unable to detect any users");
+        ffPrintError(FF_USERS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", "Unable to detect any users");
         return;
     }
 
@@ -57,12 +56,7 @@ void ffPrintUsers(FFUsersOptions* options)
                     ffStrbufAppendF(&result, "@%s", user->hostName.chars);
 
                 if(user->loginTime)
-                {
-                    char buf[64];
-                    time_t time = (time_t) (user->loginTime / 1000);
-                    strftime(buf, sizeof(buf), "%FT%T%z", localtime(&time));
-                    ffStrbufAppendF(&result, " - login time %s", buf);
-                }
+                    ffStrbufAppendF(&result, " - login time %s", ffTimeToShortStr(user->loginTime));
 
                 ffStrbufPutTo(&result, stdout);
             }
@@ -74,13 +68,13 @@ void ffPrintUsers(FFUsersOptions* options)
         {
             FFUserResult* user = (FFUserResult*)ffListGet(&users, i);
 
-            ffPrintFormat(FF_USERS_MODULE_NAME, users.length == 1 ? 0 : (uint8_t) (i + 1), &options->moduleArgs, FF_USERS_NUM_FORMAT_ARGS, (FFformatarg[]){
+            FF_PRINT_FORMAT_CHECKED(FF_USERS_MODULE_NAME, users.length == 1 ? 0 : (uint8_t) (i + 1), &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, FF_USERS_NUM_FORMAT_ARGS, ((FFformatarg[]){
                 {FF_FORMAT_ARG_TYPE_STRBUF, &user->name},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &user->hostName},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &user->sessionName},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &user->clientIp},
-                {FF_FORMAT_ARG_TYPE_UINT64, &user->loginTime},
-            });
+                {FF_FORMAT_ARG_TYPE_STRING, ffTimeToShortStr(user->loginTime)},
+            }));
         }
     }
 
@@ -128,7 +122,7 @@ void ffParseUsersJsonObject(FFUsersOptions* options, yyjson_val* module)
             continue;
         }
 
-        ffPrintError(FF_USERS_MODULE_NAME, 0, &options->moduleArgs, "Unknown JSON key %s", key);
+        ffPrintError(FF_USERS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", key);
     }
 }
 
@@ -163,7 +157,11 @@ void ffGenerateUsersJsonResult(FF_MAYBE_UNUSED FFUsersOptions* options, yyjson_m
         yyjson_mut_obj_add_strbuf(doc, obj, "hostName", &user->hostName);
         yyjson_mut_obj_add_strbuf(doc, obj, "sessionName", &user->sessionName);
         yyjson_mut_obj_add_strbuf(doc, obj, "clientIp", &user->clientIp);
-        yyjson_mut_obj_add_uint(doc, obj, "loginTime", user->loginTime);
+        const char* pstr = ffTimeToFullStr(user->loginTime);
+        if (*pstr)
+            yyjson_mut_obj_add_strcpy(doc, obj, "loginTime", pstr);
+        else
+            yyjson_mut_obj_add_null(doc, obj, "loginTime");
     }
 
 exit:
@@ -178,13 +176,13 @@ exit:
 
 void ffPrintUsersHelpFormat(void)
 {
-    ffPrintModuleFormatHelp(FF_USERS_MODULE_NAME, "{1}@{2} - login time {5}", FF_USERS_NUM_FORMAT_ARGS, (const char* []) {
+    FF_PRINT_MODULE_FORMAT_HELP_CHECKED(FF_USERS_MODULE_NAME, "{1}@{2} - login time {5}", FF_USERS_NUM_FORMAT_ARGS, ((const char* []) {
         "User name",
         "Host name",
         "Session name",
         "Client IP",
-        "Login Time"
-    });
+        "Login Time in local timezone"
+    }));
 }
 
 void ffInitUsersOptions(FFUsersOptions* options)

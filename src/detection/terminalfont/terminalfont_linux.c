@@ -145,13 +145,7 @@ static void detectXFCETerminal(FFTerminalFontResult* terminalFont)
         });
     }
 
-    if (!configFound)
-    {
-        ffStrbufSetStatic(&terminalFont->error, "Couldn't find xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml or xfce4/terminal/terminalrc");
-        return;
-    }
-
-    if(useSysFont.length == 0 || ffStrbufIgnCaseCompS(&useSysFont, "false") == 0)
+    if(configFound && (useSysFont.length == 0 || ffStrbufIgnCaseCompS(&useSysFont, "false") == 0))
     {
         if(fontName.length == 0)
             ffStrbufAppendF(&terminalFont->error, "Couldn't find FontName in %s", path);
@@ -303,6 +297,47 @@ static void detectSt(FFTerminalFontResult* terminalFont, uint32_t pid)
     ffFontInitValues(&terminalFont->font, font.chars, size.chars);
 }
 
+static void detectWarp(FFTerminalFontResult* terminalFont)
+{
+    FF_STRBUF_AUTO_DESTROY baseDir = ffStrbufCreateA(64);
+
+    FF_LIST_FOR_EACH(FFstrbuf, dirPrefix, instance.state.platform.configDirs)
+    {
+        //We need to copy the dir each time, because it used by multiple threads, so we can't directly write to it.
+        ffStrbufSet(&baseDir, dirPrefix);
+        ffStrbufAppendS(&baseDir, "warp-terminal/user_preferences.json");
+
+        yyjson_doc* doc = yyjson_read_file(baseDir.chars, YYJSON_READ_INSITU | YYJSON_READ_ALLOW_TRAILING_COMMAS | YYJSON_READ_ALLOW_COMMENTS, NULL, NULL);
+        if (!doc) continue;
+
+        yyjson_val* prefs = yyjson_obj_get(yyjson_doc_get_root(doc), "prefs");
+        if (yyjson_is_obj(prefs))
+        {
+            const char* fontName = yyjson_get_str(yyjson_obj_get(prefs, "FontName"));
+            if (!fontName) fontName = "Hack";
+            const char* fontSize = yyjson_get_str(yyjson_obj_get(prefs, "FontSize"));
+            if (!fontSize) fontSize = "13";
+
+            ffFontInitValues(&terminalFont->font, fontName, fontSize);
+        }
+        yyjson_doc_free(doc);
+        return;
+    }
+}
+
+static void detectWestonTerminal(FFTerminalFontResult* terminalFont)
+{
+    FF_STRBUF_AUTO_DESTROY font = ffStrbufCreate();
+    FF_STRBUF_AUTO_DESTROY size = ffStrbufCreate();
+    ffParsePropFileConfigValues("weston.ini", 2, (FFpropquery[]) {
+        {"font=", &font},
+        {"font-size=", &size},
+    });
+    if (!font.length) ffStrbufSetStatic(&font, "DejaVu Sans Mono");
+    if (!size.length) ffStrbufSetStatic(&size, "14");
+    ffFontInitValues(&terminalFont->font, font.chars, size.chars);
+}
+
 void ffDetectTerminalFontPlatform(const FFTerminalResult* terminal, FFTerminalFontResult* terminalFont)
 {
     if(ffStrbufIgnCaseEqualS(&terminal->processName, "konsole"))
@@ -331,4 +366,8 @@ void ffDetectTerminalFontPlatform(const FFTerminalResult* terminal, FFTerminalFo
         detectXterm(terminalFont);
     else if(ffStrbufIgnCaseEqualS(&terminal->processName, "st"))
         detectSt(terminalFont, terminal->pid);
+    else if(ffStrbufIgnCaseEqualS(&terminal->processName, "warp"))
+        detectWarp(terminalFont);
+    else if(ffStrbufIgnCaseEqualS(&terminal->processName, "weston-terminal"))
+        detectWestonTerminal(terminalFont);
 }

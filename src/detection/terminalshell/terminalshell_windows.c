@@ -143,7 +143,7 @@ static void setShellInfoDetails(FFShellResult* result)
         ffStrbufSetS(&result->prettyName, "Windows PowerShell ISE");
     else if(ffStrbufIgnCaseEqualS(&result->prettyName, "cmd"))
     {
-        ffStrbufClear(&result->prettyName);
+        ffStrbufSetS(&result->prettyName, "CMD");
 
         FF_AUTO_CLOSE_FD HANDLE snapshot = NULL;
         while(!(snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, result->pid)) && GetLastError() == ERROR_BAD_LENGTH) {}
@@ -156,15 +156,13 @@ static void setShellInfoDetails(FFShellResult* result)
             {
                 if(wcsncmp(module.szModule, L"clink_dll_", strlen("clink_dll_")) == 0)
                 {
-                    ffStrbufAppendS(&result->prettyName, "CMD (with Clink ");
+                    ffStrbufAppendS(&result->prettyName, " (with Clink ");
                     getProductVersion(module.szExePath, &result->prettyName);
                     ffStrbufAppendC(&result->prettyName, ')');
                     break;
                 }
             }
         }
-        if(result->prettyName.length == 0)
-            ffStrbufAppendS(&result->prettyName, "Command Prompt");
     }
     else if(ffStrbufIgnCaseEqualS(&result->prettyName, "nu"))
         ffStrbufSetS(&result->prettyName, "nushell");
@@ -296,7 +294,7 @@ static uint32_t getTerminalInfo(FFTerminalResult* result, uint32_t pid)
 
     while (pid != 0 && getProcessInfo(pid, &ppid, &result->processName, &result->exe, &result->exeName, &result->exePath, &hasGui))
     {
-        if(!hasGui)
+        if(!hasGui || ffStrbufIgnCaseEqualS(&result->processName, "far.exe")) // Far includes GUI objects...
         {
             //We are in nested shell
             ffStrbufClear(&result->processName);
@@ -313,7 +311,8 @@ static uint32_t getTerminalInfo(FFTerminalResult* result, uint32_t pid)
             ffStrbufSubstrBefore(&result->prettyName, result->prettyName.length - 4);
 
         if(ffStrbufIgnCaseEqualS(&result->prettyName, "sihost")           ||
-            ffStrbufIgnCaseEqualS(&result->prettyName, "explorer")
+            ffStrbufIgnCaseEqualS(&result->prettyName, "explorer")        ||
+            ffStrbufIgnCaseEqualS(&result->prettyName, "wininit")
         ) {
             // A CUI program created by Windows Explorer will spawn a conhost as its child.
             // However the conhost process is just a placeholder;
@@ -344,7 +343,7 @@ static void setTerminalInfoDetails(FFTerminalResult* result)
             : "Windows Terminal"
         );
     else if(ffStrbufIgnCaseEqualS(&result->prettyName, "conhost"))
-        ffStrbufSetStatic(&result->prettyName, "Console Window Host");
+        ffStrbufSetStatic(&result->prettyName, "Windows Console");
     else if(ffStrbufIgnCaseEqualS(&result->prettyName, "Code"))
         ffStrbufSetStatic(&result->prettyName, "Visual Studio Code");
     else if(ffStrbufIgnCaseEqualS(&result->prettyName, "explorer"))
@@ -406,6 +405,7 @@ const FFTerminalResult* ffDetectTerminal(void)
     ffStrbufInit(&result.exePath);
     ffStrbufInit(&result.prettyName);
     ffStrbufInit(&result.version);
+    ffStrbufInit(&result.tty);
     result.pid = 0;
     result.ppid = 0;
 

@@ -1,3 +1,133 @@
+# 2.9.2
+
+Changes:
+* To make use of the newly introduced `yyjson` flag `YYJSON_WRITE_NEWLINE_AT_END`, fastfetch now requires `yyjson` 0.9.0 or later
+
+Features:
+* Always add a final new-line when generating JSON output
+
+Bugfixes:
+* Fix a memory leak
+* Better portable mode detection of Windows Terminal (TerminalFont, Windows)
+
+# 2.9.1
+
+Features:
+* Support weston-terminal (missed commit in v2.9.0) (TerminalFont, Linux)
+* Support hyprcursor detection (#776, Cursor, Linux)
+
+Bugfixes:
+* Fix `fastfetch --gen-config` raises SIGSEGV when `~/.config/fastfetch` doesn't exist. Regression of `2.9.0` (#778)
+
+# 2.9.0
+
+Features:
+* Support Lxterminal version detection (Terminal, Linux)
+* Support weston-terminal version detection (Terminal, Linux)
+* Support `am` package manager detection (#771, Packages, Linux)
+* Support network prefix length detection for IPv6 (LocalIP)
+* Display all IPs when multiple IPs are assigned to the same interface (LocalIP)
+* Add option `--localip-show-prefix-len` to show network prefix length for both IPv4 and IPv6. Defaults to `true` (LocalIP)
+
+Bugfixes:
+* Fix network prefix length detection when the value is greater than 24 (#773, LocalIP, Linux)
+* For xfce4-terminal, use system mono font if no config file is found (TerminalFont, Linux)
+
+# 2.8.10
+
+Bugfixes:
+* Don't display 0.00 GHz (CPU, FreeBSD)
+* Don't detect manufactor of Qualcomm as ARM (CPU, Android)
+* Ignore `chezmoi` (Terminal, Linux)
+* Trim trailing possible whitespaces (PublicIP)
+* Fix detection compatibility for KDE 6 (Font, Linux)
+* Always use Metal API to detect vmem size (GPU, macOS)
+
+Features:
+* Improve stability; print more useful error message; avoid misuse (PublicIP / Weather)
+* Use MS-DOS device name as mountFrom result, instead of useless GUID volume name (Windows, Disk)
+* Some adjustments to Terminal detection (Terminal, Windows)
+    * Don't pretty print CMD
+    * Print conhost as Windows Console
+    * Don't detect `wininit` as Terminal
+
+Logo:
+* Fix color of Arco Linux
+
+# 2.8.9
+
+Bugfixes:
+* Don't detect `SessionLeader` as terminal, actually (Terminal, Linux)
+* Fix blurry chafa result when specifying both width and height (#757, Logo)
+
+Features:
+* Support new MacBook Air (Host, macOS)
+* Distinguish min frequency and base frequency (CPU)
+
+Logo:
+* Fix proxmox
+
+# 2.8.8
+
+Bugfixes:
+* Fix old fish version compatibility (#744)
+* Fix truncated texts in `--help format` (#745)
+* Fix old vulkan-header and libdrm library compatibility (#748, Linux)
+* Fix possible segfaults in `--help *-format` (#749)
+* Fix invalid resolution detection when using libdrm (Linux, Display)
+* Fix segfault when `/sys/devices/system/cpu/cpufreq/` doesn't exist (#750, CPU, Linux)
+* Don't detect `SessionLeader` as terminal (Terminal, Linux)
+* Fix detection of client IP (Users, Linux)
+
+# 2.8.7
+
+Bugfixes:
+* Fix max CPU frequency detection for some cases (CPU, Linux)
+* Fix some memory leaks
+* Fix ddcutil 2.1 compatibility (Brightness, Linux)
+* Workaround `permission denied` error when reading `/proc/uptime` (Uptime, Android)
+
+Features:
+* Support zellij version detection (Linux, Terminal)
+
+Logo:
+* Fix PostMarketOS
+
+# 2.8.6
+
+Changes:
+* Due to newly introduced configs, JSONC option `{ "temperatureUnit": "C" }` has been changed to `{ "temp": { "unit": "C" } }`
+
+Bugfixes:
+* Fix incorrect GPU name detection for Intel iGPU on Linux (#736, GPU, Linux)
+
+Features:
+* Support additional temperature formatting options (#737)
+    * `{ "temp": { "ndigits": 1 } }`
+    * `{ "temp": { "color": { "green": "green", "yellow": "yellow", "red": "red" } } }`
+* Support specifying custom `pci.ids` path for Linux (GPU, Linux)
+* Support warp-linux terminal version & terminal font detection (Terminal, Linux)
+
+# 2.8.5
+
+Bugfixes:
+* Fix uninitialized variables
+
+# 2.8.4
+
+Bugfixes:
+* Fix segfault if we fail to find `Vendor ID` in `lscpu` (#718, CPU, Linux)
+* Fix multi-device bcachefs filesystem compatibility (#731, Disk, Linux)
+
+Features:
+* Support portable Windows Terminal settings (#720, Terminal, Windows)
+* Support `--color-block-width` and `--color-block-range` (#721, Colors)
+* Support `--diskio-detect-total` to show total bytes read/written (DiskIO)
+* Support `--netio-detect-total` to show total bytes received/sent (NetIO)
+* Support `--packages-disabled` to disable specified package manager (#729, Packages)
+* Support `--display-order` to sort multiple displays in a specific order (Display)
+* Support `--display-compact-type original-with-refresh-rate` to show refresh rates in compact (oneline) mode (Display)
+
 # 2.8.3
 
 Bugfixes:

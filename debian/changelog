@@ -1,3 +1,33 @@
+fastfetch (2.8.10) jammy; urgency=medium
+
+  * Update to 2.8.10
+
+ -- Carter Li <zhangsongcui@live.cn>  Mon, 25 Mar 2024 15:01:53 +0800
+
+fastfetch (2.8.9) jammy; urgency=medium
+
+  * Update to 2.8.9
+
+ -- Carter Li <zhangsongcui@live.cn>  Fri, 15 Mar 2024 10:49:42 +0800
+
+fastfetch (2.8.8) jammy; urgency=medium
+
+  * Update to 2.8.8
+
+ -- Carter Li <zhangsongcui@live.cn>  Fri, 08 Mar 2024 09:59:41 +0800
+
+fastfetch (2.8.6) jammy; urgency=medium
+
+  * Update to 2.8.6
+
+ -- Carter Li <zhangsongcui@live.cn>  Wed, 28 Feb 2024 10:01:40 +0800
+
+fastfetch (2.8.4) jammy; urgency=medium
+
+  * Update to 2.8.4
+
+ -- Carter Li <zhangsongcui@live.cn>  Fri, 23 Feb 2024 16:14:57 +0800
+
 fastfetch (2.7.1ubuntu2) jammy; urgency=medium
 
   * Ignore .git

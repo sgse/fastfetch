@@ -148,12 +148,7 @@ static const char* getProcessNameAndPpid(pid_t pid, char* name, pid_t* ppid, int
         return "sscanf(stat) failed";
 
     if (tty)
-    {
-        if ((tty_ >> 8) == 0x88)
-            *tty = tty_ & 0xFF;
-        else
-            *tty = -1;
-    }
+        *tty = tty_ & 0xFF;
 
     #elif defined(__APPLE__)
 
@@ -285,6 +280,7 @@ static pid_t getTerminalInfo(FFTerminalResult* result, pid_t pid)
             ffStrEquals(name, "xonsh")      || // works in Linux but not in macOS because kernel returns `Python` in this case
             ffStrEquals(name, "login")      ||
             ffStrEquals(name, "sshd")       ||
+            ffStrEquals(name, "chezmoi")    || // #762
             #ifdef __linux__
             ffStrStartsWith(name, "flatpak-") || // #707
             #endif
@@ -346,6 +342,7 @@ static void getTerminalFromEnv(FFTerminalResult* result)
         !ffStrbufEqualS(&result->processName, "systemd") &&
         !ffStrbufEqualS(&result->processName, "init") &&
         !ffStrbufEqualS(&result->processName, "(init)") &&
+        !ffStrbufEqualS(&result->processName, "SessionLeader") && // #750
         #endif
 
         !ffStrbufEqualS(&result->processName, "0")
@@ -571,6 +568,7 @@ const FFTerminalResult* ffDetectTerminal()
     result.exeName = result.exe.chars;
     ffStrbufInit(&result.exePath);
     ffStrbufInit(&result.version);
+    ffStrbufInitS(&result.tty, ttyname(STDOUT_FILENO));
     result.pid = 0;
     result.ppid = 0;
 

@@ -2,11 +2,12 @@
 #include "common/jsonconfig.h"
 #include "common/percent.h"
 #include "common/parsing.h"
+#include "common/temps.h"
 #include "detection/battery/battery.h"
 #include "modules/battery/battery.h"
 #include "util/stringUtils.h"
 
-#define FF_BATTERY_NUM_FORMAT_ARGS 8
+#define FF_BATTERY_NUM_FORMAT_ARGS 9
 
 static void printBattery(FFBatteryOptions* options, FFBatteryResult* result, uint8_t index)
 {
@@ -49,7 +50,7 @@ static void printBattery(FFBatteryOptions* options, FFBatteryResult* result, uin
             if(str.length > 0)
                 ffStrbufAppendS(&str, " - ");
 
-            ffParseTemperature(result->temperature, &str);
+            ffTempsAppendNum(result->temperature, &str, options->tempConfig);
         }
 
         ffStrbufPutTo(&str, stdout);
@@ -58,17 +59,19 @@ static void printBattery(FFBatteryOptions* options, FFBatteryResult* result, uin
     {
         FF_STRBUF_AUTO_DESTROY capacityStr = ffStrbufCreate();
         ffPercentAppendNum(&capacityStr, result->capacity, options->percent, false);
-        ffPrintFormat(FF_BATTERY_MODULE_NAME, index, &options->moduleArgs, FF_BATTERY_NUM_FORMAT_ARGS, (FFformatarg[]){
+        FF_STRBUF_AUTO_DESTROY tempStr = ffStrbufCreate();
+        ffTempsAppendNum(result->temperature, &tempStr, options->tempConfig);
+        FF_PRINT_FORMAT_CHECKED(FF_BATTERY_MODULE_NAME, index, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, FF_BATTERY_NUM_FORMAT_ARGS, ((FFformatarg[]) {
             {FF_FORMAT_ARG_TYPE_STRBUF, &result->manufacturer},
             {FF_FORMAT_ARG_TYPE_STRBUF, &result->modelName},
             {FF_FORMAT_ARG_TYPE_STRBUF, &result->technology},
             {FF_FORMAT_ARG_TYPE_STRBUF, &capacityStr},
             {FF_FORMAT_ARG_TYPE_STRBUF, &result->status},
-            {FF_FORMAT_ARG_TYPE_DOUBLE, &result->temperature},
+            {FF_FORMAT_ARG_TYPE_STRBUF, &tempStr},
             {FF_FORMAT_ARG_TYPE_UINT, &result->cycleCount},
             {FF_FORMAT_ARG_TYPE_STRBUF, &result->serial},
             {FF_FORMAT_ARG_TYPE_STRBUF, &result->manufactureDate},
-        });
+        }));
     }
 }
 
@@ -80,7 +83,7 @@ void ffPrintBattery(FFBatteryOptions* options)
 
     if (error)
     {
-        ffPrintError(FF_BATTERY_MODULE_NAME, 0, &options->moduleArgs, "%s", error);
+        ffPrintError(FF_BATTERY_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
     }
     else
     {
@@ -97,7 +100,7 @@ void ffPrintBattery(FFBatteryOptions* options)
             ffStrbufDestroy(&result->manufactureDate);
         }
         if(results.length == 0)
-            ffPrintError(FF_BATTERY_MODULE_NAME, 0, &options->moduleArgs, "No batteries found");
+            ffPrintError(FF_BATTERY_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "No batteries found");
     }
 }
 
@@ -108,11 +111,8 @@ bool ffParseBatteryCommandOptions(FFBatteryOptions* options, const char* key, co
     if (ffOptionParseModuleArgs(key, subKey, value, &options->moduleArgs))
         return true;
 
-    if (ffStrEqualsIgnCase(subKey, "temp"))
-    {
-        options->temp = ffOptionParseBoolean(value);
+    if (ffTempsParseCommandOptions(key, subKey, value, &options->temp, &options->tempConfig))
         return true;
-    }
 
     #ifdef _WIN32
         if (ffStrEqualsIgnCase(subKey, "use-setup-api"))
@@ -149,16 +149,13 @@ void ffParseBatteryJsonObject(FFBatteryOptions* options, yyjson_val* module)
         }
         #endif
 
-        if (ffStrEqualsIgnCase(key, "temp"))
-        {
-            options->temp = yyjson_get_bool(val);
+        if (ffTempsParseJsonObject(key, val, &options->temp, &options->tempConfig))
             continue;
-        }
 
         if (ffPercentParseJsonObject(key, val, &options->percent))
             continue;
 
-        ffPrintError(FF_BATTERY_MODULE_NAME, 0, &options->moduleArgs, "Unknown JSON key %s", key);
+        ffPrintError(FF_BATTERY_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", key);
     }
 }
 
@@ -174,8 +171,7 @@ void ffGenerateBatteryJsonConfig(FFBatteryOptions* options, yyjson_mut_doc* doc,
         yyjson_mut_obj_add_bool(doc, module, "useSetupApi", options->useSetupApi);
     #endif
 
-    if (options->temp != defaultOptions.temp)
-        yyjson_mut_obj_add_bool(doc, module, "temp", options->temp);
+    ffTempsGenerateJsonConfig(doc, module, defaultOptions.temp, defaultOptions.tempConfig, options->temp, options->tempConfig);
 
     ffPercentGenerateJsonConfig(doc, module, defaultOptions.percent, options->percent);
 }
@@ -220,17 +216,17 @@ void ffGenerateBatteryJsonResult(FFBatteryOptions* options, yyjson_mut_doc* doc,
 
 void ffPrintBatteryHelpFormat(void)
 {
-    ffPrintModuleFormatHelp(FF_BATTERY_MODULE_NAME, "{4}, {5}", FF_BATTERY_NUM_FORMAT_ARGS, (const char* []) {
+    FF_PRINT_MODULE_FORMAT_HELP_CHECKED(FF_BATTERY_MODULE_NAME, "{4}, {5}", FF_BATTERY_NUM_FORMAT_ARGS, ((const char* []) {
         "Battery manufactor",
         "Battery model",
         "Battery technology",
         "Battery capacity (percentage)",
         "Battery status",
-        "Battery temperature",
+        "Battery temperature (formatted)",
         "Battery cycle count",
         "Battery serial number",
         "Battery manufactor date",
-    });
+    }));
 }
 
 void ffInitBatteryOptions(FFBatteryOptions* options)
@@ -248,7 +244,8 @@ void ffInitBatteryOptions(FFBatteryOptions* options)
     );
     ffOptionInitModuleArg(&options->moduleArgs);
     options->temp = false;
-    options->percent = (FFPercentConfig) { 50, 20 };
+    options->tempConfig = (FFColorRangeConfig) { 60, 80 };
+    options->percent = (FFColorRangeConfig) { 50, 20 };
 
     #ifdef _WIN32
         options->useSetupApi = false;

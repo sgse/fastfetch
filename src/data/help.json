@@ -656,7 +656,7 @@
             }
         },
         {
-            "long": "temperature-unit",
+            "long": "temp-unit",
             "desc": "Set the unit of the temperature",
             "arg": {
                 "type": "enum",
@@ -666,6 +666,41 @@
                     "K": "Kelvin"
                 },
                 "default": "C"
+            }
+        },
+        {
+            "long": "temp-ndigits",
+            "desc": "Set the number of digits to keep after the decimal point when printing temperature",
+            "arg": {
+                "type": "num",
+                "default": 2
+            }
+        },
+        {
+            "long": "temp-color-green",
+            "desc": "Set color used in green state of temperature values",
+            "remark": "See `-h color` for the list of available colors",
+            "arg": {
+                "type": "color",
+                "default": "green"
+            }
+        },
+        {
+            "long": "temp-color-yellow",
+            "desc": "Set color used in yellow state of temperature values",
+            "remark": "See `-h color` for the list of available colors",
+            "arg": {
+                "type": "color",
+                "default": "light_yellow"
+            }
+        },
+        {
+            "long": "temp-color-red",
+            "desc": "Set color used in red state of temperature values",
+            "remark": "See `-h color` for the list of available colors",
+            "arg": {
+                "type": "color",
+                "default": "light_red"
             }
         }
     ],
@@ -973,6 +1008,14 @@
             }
         },
         {
+            "long": "diskio-detect-total",
+            "desc": "Detect total bytes instead of current rate",
+            "arg": {
+                "type": "bool",
+                "default": false
+            }
+        },
+        {
             "long": "diskio-name-prefix",
             "desc": "Show disks with given name prefix only",
             "arg": {
@@ -1005,17 +1048,16 @@
             }
         },
         {
-            "long": "packages-winget",
-            "desc": "Set if winget package count should be detected",
+            "long": "packages-disabled",
+            "desc": "A colon separated list of package managers to be disabled when detecting",
             "remark": [
-                "This option is extremely slow.",
+                "Some detection methods can be very slow.",
                 "You may need to increase value of '--processing-timeout' to make it actually work.",
-                "Windows only"
+                "Use `--packages-disabled none` to enable all."
             ],
             "arg": {
-                "type": "bool",
-                "optional": true,
-                "default": false
+                "type": "string",
+                "default": "winget"
             }
         },
         {
@@ -1026,7 +1068,9 @@
                 "enum": {
                     "none": "Disable this compact mode",
                     "original": "Print original resolutions",
-                    "scaled": "Print scaled resolutions"
+                    "scaled": "Print scaled resolutions",
+                    "original-with-refresh-rate": "Print original resolutions with refresh rate",
+                    "scaled-with-refresh-rate": "Print scaled resolutions with refresh rate"
                 },
                 "default": "none"
             }
@@ -1038,6 +1082,19 @@
                 "type": "bool",
                 "optional": true,
                 "default": false
+            }
+        },
+        {
+            "long": "display-order",
+            "desc": "Set the order should be used when printing displays",
+            "arg": {
+                "type": "enum",
+                "enum": {
+                    "none": "Use the detected order",
+                    "asc": "Sort by display name ascendingly",
+                    "desc": "Sort by display name descendingly"
+                },
+                "default": "none"
             }
         },
         {
@@ -1205,6 +1262,15 @@
             }
         },
         {
+            "long": "localip-show-prefix-len",
+            "desc": "Show network prefix length (/N) in local ip module",
+            "arg": {
+                "type": "bool",
+                "optional": true,
+                "default": true
+            }
+        },
+        {
             "long": "localip-name-prefix",
             "desc": "Show interfaces with given interface name prefix only",
             "arg": {
@@ -1245,6 +1311,14 @@
                 "type": "bool",
                 "optional": true,
                 "default": true
+            }
+        },
+        {
+            "long": "netio-detect-total",
+            "desc": "Detect total bytes instead of current rate",
+            "arg": {
+                "type": "bool",
+                "default": false
             }
         },
         {
@@ -1462,6 +1536,29 @@
                 "Threshold of percentage colors",
                 "Value greater than percent-green and less then yellow will be shown in yellow",
                 "Value greater than percent-yellow will be shown in red"
+            ],
+            "arg": {
+                "type": "num"
+            },
+            "pseudo": true
+        },
+        {
+            "long": "<module>-temp-green",
+            "desc": [
+                "Threshold of temperature colors",
+                "Value less then temp-green will be shown in green"
+            ],
+            "arg": {
+                "type": "num"
+            },
+            "pseudo": true
+        },
+        {
+            "long": "<module>-temp-yellow",
+            "desc": [
+                "Threshold of temperature colors",
+                "Value greater than temp-green and less then yellow will be shown in yellow",
+                "Value greater than temp-yellow will be shown in red"
             ],
             "arg": {
                 "type": "num"
