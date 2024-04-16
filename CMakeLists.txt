@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.9.1
+    VERSION 2.9.2
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -699,7 +699,9 @@ check_function_exists(wcwidth HAVE_WCWIDTH)
 if(NOT HAVE_WCWIDTH)
     list(APPEND LIBFASTFETCH_SRC src/3rdparty/mk_wcwidch/wcwidth.c)
 endif()
-check_function_exists(statx HAVE_STATX)
+if(LINUX)
+    check_function_exists(statx HAVE_STATX)
+endif()
 
 if(ENABLE_SYSTEM_YYJSON)
     find_package(yyjson)
