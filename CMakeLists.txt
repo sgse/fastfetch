@@ -75,6 +75,7 @@ option(ENABLE_ASAN "Build fastfetch with ASAN (address sanitizer)" OFF)
 option(ENABLE_PROPRIETARY_GPU_DRIVER_API "Enable proprietary GPU driver API (NVML, IGCL and AGS)" ON)
 option(BUILD_TESTS "Build tests" OFF) # Also create test executables
 option(SET_TWEAK "Add tweak to project version" ON) # This is set to off by github actions for release builds
+option(IS_MUSL "Build with musl libc" OFF) # Used by Github Actions
 
 if (LINUX)
     set(CUSTOM_PCI_IDS_PATH "" CACHE STRING "Custom path to file pci.ids, defaults to `/usr/share/hwdata/pci.ids`")
@@ -1131,11 +1132,19 @@ else() # We don't use this in Windows
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
         set(CMAKE_SYSTEM_PROCESSOR "amd64")
     endif()
-    string(TOLOWER "${CMAKE_PROJECT_NAME}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}" CPACK_PACKAGE_FILE_NAME)
+    if(IS_MUSL)
+        string(TOLOWER "${CMAKE_PROJECT_NAME}-musl-${CMAKE_SYSTEM_PROCESSOR}" CPACK_PACKAGE_FILE_NAME)
+    else()
+        string(TOLOWER "${CMAKE_PROJECT_NAME}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}" CPACK_PACKAGE_FILE_NAME)
+    endif()
 endif()
 
 if(LINUX)
-    set(CPACK_GENERATOR "${CPACK_GENERATOR};DEB;RPM")
+    find_program(HAVE_DPKG "dpkg")
+    find_program(HAVE_RPMBUILD "rpmbuild")
+    if(HAVE_DPKG AND HAVE_RPMBUILD)
+        set(CPACK_GENERATOR "${CPACK_GENERATOR};DEB;RPM")
+    endif()
 
     set(CPACK_DEBIAN_PACKAGE_SECTION, "utils")
     set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
