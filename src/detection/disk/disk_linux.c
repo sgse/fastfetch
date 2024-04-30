@@ -31,7 +31,7 @@ static bool isPhysicalDevice(const struct mntent* device)
 
     //DrvFs is a filesystem plugin to WSL that was designed to support interop between WSL and the Windows filesystem.
     if(ffStrEquals(device->mnt_type, "9p"))
-        return true;
+        return ffStrContains(device->mnt_opts, "aname=drvfs");
 
     //ZFS pool
     if(ffStrEquals(device->mnt_type, "zfs"))
@@ -250,7 +250,7 @@ static void detectStats(FFDisk* disk)
     #endif
 }
 
-const char* ffDetectDisksImpl(FFlist* disks)
+const char* ffDetectDisksImpl(FFDiskOptions* options, FFlist* disks)
 {
     FILE* mountsFile = setmntent("/proc/mounts", "r");
     if(mountsFile == NULL)
@@ -260,7 +260,12 @@ const char* ffDetectDisksImpl(FFlist* disks)
 
     while((device = getmntent(mountsFile)))
     {
-        if(!isPhysicalDevice(device))
+        if (__builtin_expect(options->folders.length, 0))
+        {
+            if (!ffDiskMatchMountpoint(options, device->mnt_dir))
+                continue;
+        }
+        else if(!isPhysicalDevice(device))
             continue;
 
         //We have a valid device, add it to the list

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.9.2
+    VERSION 2.10.3
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -255,7 +255,7 @@ file(GLOB LOGO_FILES "src/logo/ascii/*.txt")
 set(LOGO_BUILTIN_H "#pragma once\n#pragma GCC diagnostic ignored \"-Wtrigraphs\"\n\n")
 foreach(file ${LOGO_FILES})
     fastfetch_load_text("${file}" content)
-    get_filename_component(file "${file}" NAME_WLE)
+    get_filename_component(file "${file}" NAME_WE)
     string(TOUPPER "${file}" file)
     string(REGEX REPLACE "\\$\\{c([0-9]+)\\}" "$\\1" content "${content}")
     set(LOGO_BUILTIN_H "${LOGO_BUILTIN_H}#define FASTFETCH_DATATEXT_LOGO_${file} ${content}\n")
@@ -400,7 +400,10 @@ if(LINUX)
         src/detection/diskio/diskio_linux.c
         src/detection/displayserver/linux/displayserver_linux.c
         src/detection/displayserver/linux/drm.c
-        src/detection/displayserver/linux/wayland.c
+        src/detection/displayserver/linux/wayland/wayland.c
+        src/detection/displayserver/linux/wayland/global-output.c
+        src/detection/displayserver/linux/wayland/zwlr-output.c
+        src/detection/displayserver/linux/wayland/wlr-output-management-unstable-v1-protocol.c
         src/detection/displayserver/linux/wmde.c
         src/detection/displayserver/linux/xcb.c
         src/detection/displayserver/linux/xlib.c
@@ -518,7 +521,10 @@ elseif(BSD)
         src/detection/diskio/diskio_bsd.c
         src/detection/displayserver/linux/displayserver_linux.c
         src/detection/displayserver/linux/drm.c
-        src/detection/displayserver/linux/wayland.c
+        src/detection/displayserver/linux/wayland/wayland.c
+        src/detection/displayserver/linux/wayland/global-output.c
+        src/detection/displayserver/linux/wayland/zwlr-output.c
+        src/detection/displayserver/linux/wayland/wlr-output-management-unstable-v1-protocol.c
         src/detection/displayserver/linux/wmde.c
         src/detection/displayserver/linux/xcb.c
         src/detection/displayserver/linux/xlib.c
@@ -927,10 +933,6 @@ if(ENABLE_THREADS)
     endif()
 endif()
 
-if(ENABLE_PCI_MEMORY)
-    target_compile_definitions(libfastfetch PRIVATE FF_USE_PCI_MEMORY)
-endif()
-
 if(LINUX)
     target_link_libraries(libfastfetch
         PRIVATE "m"
@@ -1141,16 +1143,20 @@ endif()
 
 if(LINUX)
     find_program(HAVE_DPKG "dpkg")
-    find_program(HAVE_RPMBUILD "rpmbuild")
-    if(HAVE_DPKG AND HAVE_RPMBUILD)
-        set(CPACK_GENERATOR "${CPACK_GENERATOR};DEB;RPM")
+    if(HAVE_DPKG)
+        set(CPACK_GENERATOR "${CPACK_GENERATOR};DEB")
+
+        set(CPACK_DEBIAN_PACKAGE_SECTION, "utils")
+        set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6")
     endif()
 
-    set(CPACK_DEBIAN_PACKAGE_SECTION, "utils")
-    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6")
+    find_program(HAVE_RPMBUILD "rpmbuild")
+    if(HAVE_RPMBUILD)
+        set(CPACK_GENERATOR "${CPACK_GENERATOR};RPM")
 
-    set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+        set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+    endif()
 endif()
 
 set(CPACK_SET_DESTDIR ON)

@@ -13,19 +13,20 @@
 
 static void getKDE(FFstrbuf* result, FFDEOptions* options)
 {
-    ffParsePropFileValues(FASTFETCH_TARGET_DIR_USR "/share/xsessions/plasmax11.desktop", 1, (FFpropquery[]) {
+    ffParsePropFileValues(FASTFETCH_TARGET_DIR_USR "/share/wayland-sessions/plasma.desktop", 1, (FFpropquery[]) {
         {"X-KDE-PluginInfo-Version =", result}
     });
+    if(result->length == 0)
+    {
+        ffParsePropFileValues(FASTFETCH_TARGET_DIR_USR "/share/xsessions/plasmax11.desktop", 1, (FFpropquery[]) {
+            {"X-KDE-PluginInfo-Version =", result}
+        });
+    }
     if(result->length == 0)
         ffParsePropFileData("xsessions/plasma.desktop", "X-KDE-PluginInfo-Version =", result);
     if(result->length == 0)
         ffParsePropFileData("xsessions/plasma5.desktop", "X-KDE-PluginInfo-Version =", result);
-    if(result->length == 0)
-    {
-        ffParsePropFileValues(FASTFETCH_TARGET_DIR_USR "/share/wayland-sessions/plasma.desktop", 1, (FFpropquery[]) {
-            {"X-KDE-PluginInfo-Version =", result}
-        });
-    }
+
     if(result->length == 0)
         ffParsePropFileData("wayland-sessions/plasmawayland.desktop", "X-KDE-PluginInfo-Version =", result);
     if(result->length == 0)
@@ -42,21 +43,25 @@ static void getKDE(FFstrbuf* result, FFDEOptions* options)
     }
 }
 
-static const char* getGnomeBySo(FFstrbuf* result)
+static const char* getGnomeByDbus(FF_MAYBE_UNUSED FFstrbuf* result)
 {
+#ifdef FF_HAVE_DBUS
     FFDBusData dbus;
     if (ffDBusLoadData(DBUS_BUS_SESSION, &dbus) != NULL)
         return "ffDBusLoadData() failed";
 
     ffDBusGetPropertyString(&dbus, "org.gnome.Shell", "/org/gnome/Shell", "org.gnome.Shell", "ShellVersion", result);
     return NULL;
+#else // FF_HAVE_DBUS
+    return "ffDBusLoadData() failed: dbus support not compiled in";
+#endif // FF_HAVE_DBUS
 }
 
 static void getGnome(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
 {
-    getGnomeBySo(result);
+    getGnomeByDbus(result);
 
-    if (result->length == 0)
+    if (result->length == 0 && options->slowVersionDetection)
     {
         if (ffProcessAppendStdOut(result, (char* const[]){
             "gnome-shell",
