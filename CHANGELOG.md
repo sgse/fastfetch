@@ -1,4 +1,106 @@
-# 2.10.3
+# 2.12.0
+
+Changes:
+* The long deprecated options `--set` and `--set-keyless` are removed.
+
+Features:
+* Support st terminal font detection for font configuration compiled in st binary (TerminalFont, Linux)
+* Support option `--color-output` to change output color of all modules except `Title`, `Separator` and `Colors`
+    * `display.color.output` in JSONC config file
+* Support option `--<module>-output-color` to change output color of one specified module, which overrides the global option `--color-output`
+* Add new module `Loadavg` to print load averages (Loadavg)
+* Add option `--publicip-ipv6` to print IPv6 address (PublicIP)
+
+Bugfixes:
+* Rename option `--temperature-unit` to `--temp-unit` as stated in help messages
+
+Logos:
+* Fix DahliaOS detection
+
+# 2.11.5
+
+Bugfix:
+* Fix logo printing for OpenMandriva (#896)
+* Remove `--os-file` in help messages
+
+# 2.11.4
+
+Changes:
+* Fastfetch will print a colorless ascii logo in `--pipe` mode for better `lolcat` compatibility. `fastfetch | lolcat` should work and no `--pipe false` needed.
+    * Previously the logo would be disabled in `--pipe` mode.
+    * Use `--pipe -l none` to get the old beheavior
+* `--os-file` was removed and CMake option `-DCUSTOM_OS_RELEASE_PATH=/path/to/os-release` was introduced for configuring at compile time by package managers if needed. This option should not used in most cases.
+
+Bugfixes:
+* Fix possible out-of-bound memory access (#868)
+* Fix Apple Terminal detection (#878, macOS, Terminal)
+* Fix deprecation warning for macOS 14.0 hopefully (#860, macOS, Camera)
+* Fix memory leaks when passing informative options (#888)
+* Fix JSON config `size.ndigits` doesn't work 
+
+Features:
+* Enable `--pipe` mode if environment variable `$NO_COLOR` is set
+* Support Armbian and Proxmox distro detection (OS, Linux)
+
+Logo:
+* Add Armbian
+
+# 2.11.3
+
+Hotfix for nix (https://github.com/NixOS/nixpkgs/issues/308849#issuecomment-2093962376)
+
+Features:
+* Add cmake option `CUSTOM_AMDGPU_IDS_PATH` for specifying custom path of `amdgpu.ids`
+
+Bugfixes:
+* Fix hanging when detecting disconnected network drive (Disk, Windows)
+* Ensure line ending is printed when printing image logo errors (Logo)
+* Revert image logo limitation change in 2.11.2; allow image logo in SSH session and tmux again (#861, Logo)
+* Fix doubled output in custom formation (PhysicalDisk, Windows)
+
+# 2.11.2
+
+Hotfix for Debian 11
+
+Changes:
+* Error messages when trying to print image logo will only be printed with `--show-errors`
+* When generating JSON output, fastfetch will generate an empty array when no result is detected, instead of an error.
+
+Bugfixes:
+* Fix segfault in Debian 11 and some old kernels. Regression introduced in 2.11.0 (#845, GPU, Linux)
+* Don't try detecting version of raw `sh` shell (#849, Shell, Linux)
+* Trim `\r` on Windows
+
+Features:
+* Check xdg state home for nix user packages (#837, Packages, Linux)
+* Disable image logos in ssh and tmux sessions (#839)
+* Support MX Linux distro detection (#847, OS, Linux)
+
+Logo:
+* Add KernelOS
+* Fix name of DraugerOS
+* Add missing `FF_LOGO_LINE_TYPE_SMALL_BIT` flags
+* Add MX2
+
+# 2.11.1
+
+Hotfix for Android
+
+Bugfixes:
+* Fix uninitialized variables which can cause crashes (#760 #838, Battery, Android)
+* Don't detect hyfetch as shell when used as backend of [hyfetch](https://github.com/hykilpikonna/hyfetch)
+* Fix incorrect information in man page (#828)
+
+Features:
+* Support sorcery package manager detection (Packages, Linux)
+* Make `--custom-format` optional (Custom)
+* Make `/` an alias of `C:\` for `--disk-folders` (Disk, Windows)
+* Build for Linux armv7
+
+Logo:
+* Fix colors of Source Mage logo
+
+# 2.11.0
 
 Changes:
 * Default `hideCursor` to false. It doesn't make much difference but makes user's terminal unusable if fastfetch is not exited correctly.
@@ -10,14 +112,21 @@ Bugfixes:
 * Fix wifi detection on platforms that don't use NetworkManager (#811, Wifi, Linux)
 * Fix NixOS wrapped process name (#814, Terminal, Linux)
 * Fix GPU type detection for AMD cards (#816, GPU, Linux)
+* Silence system deprecation warnings (#822, Camera, macOS)
 
 Features:
 * Add basic support DE detection support for UKUI (DE, Linux)
 * Support printing total number of nix / flatpak / brew packages (Packages)
     * See `fastfetch -h packages-format` for detail
 * Better max CPU frequency detection support with `CPUID / 16H` instruction (CPU, Windows)
-    * This requires Core I Gen 6 or newer, and with `Virtual Machine Platform` Windows feature disabled. X86 only.
+    * This requires Intel Core I Gen 6 or newer, and with `Virtual Machine Platform` Windows feature disabled. X86 only.
 * Improve performance of nix packages detection (Packages, Linux)
+* Make config specified in JSONC overridable by command line flags
+    * Note this change only make global config overridable; module configs are still not
+* Suggest increasing `--processing-timeout` when child process timeouts
+* Only detect folders that specified by `--disk-folders`
+    * Previously `--disk-folders` only omits unmatched disks from output
+    * This option can be used to improve detection performance by ignoring slow network drives
 
 # 2.10.2
 
