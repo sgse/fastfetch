@@ -128,12 +128,6 @@ void ffGenerateBiosJsonResult(FF_MAYBE_UNUSED FFBiosOptions* options, yyjson_mut
         goto exit;
     }
 
-    if (bios.version.length == 0)
-    {
-        yyjson_mut_obj_add_str(doc, module, "error", "bios_version is not set.");
-        goto exit;
-    }
-
     yyjson_mut_val* obj = yyjson_mut_obj_add_obj(doc, module, "result");
     yyjson_mut_obj_add_strbuf(doc, obj, "date", &bios.date);
     yyjson_mut_obj_add_strbuf(doc, obj, "release", &bios.release);

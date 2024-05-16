@@ -9,6 +9,7 @@ static FFModuleBaseInfo* B[] = {
     (void*) &instance.config.modules.bios,
     (void*) &instance.config.modules.bluetooth,
     (void*) &instance.config.modules.board,
+    (void*) &instance.config.modules.bootmgr,
     (void*) &instance.config.modules.break_,
     (void*) &instance.config.modules.brightness,
     NULL,
@@ -99,6 +100,7 @@ static FFModuleBaseInfo* O[] = {
 static FFModuleBaseInfo* P[] = {
     (void*) &instance.config.modules.packages,
     (void*) &instance.config.modules.physicalDisk,
+    (void*) &instance.config.modules.physicalMemory,
     (void*) &instance.config.modules.player,
     (void*) &instance.config.modules.powerAdapter,
     (void*) &instance.config.modules.processes,

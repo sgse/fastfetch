@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.11.5
+    VERSION 2.12.0
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -284,6 +284,7 @@ set(LIBFASTFETCH_SRC
     src/common/properties.c
     src/common/settings.c
     src/common/temps.c
+    src/detection/bootmgr/bootmgr.c
     src/detection/chassis/chassis.c
     src/detection/cpu/cpu.c
     src/detection/cpuusage/cpuusage.c
@@ -297,6 +298,7 @@ set(LIBFASTFETCH_SRC
     src/detection/opencl/opencl.c
     src/detection/os/os.c
     src/detection/packages/packages.c
+    src/detection/physicalmemory/physicalmemory.c
     src/detection/publicip/publicip.c
     src/detection/terminaltheme/terminaltheme.c
     src/detection/terminalfont/terminalfont.c
@@ -313,6 +315,7 @@ set(LIBFASTFETCH_SRC
     src/modules/bios/bios.c
     src/modules/bluetooth/bluetooth.c
     src/modules/board/board.c
+    src/modules/bootmgr/bootmgr.c
     src/modules/brightness/brightness.c
     src/modules/break/break.c
     src/modules/camera/camera.c
@@ -345,6 +348,7 @@ set(LIBFASTFETCH_SRC
     src/modules/os/os.c
     src/modules/packages/packages.c
     src/modules/physicaldisk/physicaldisk.c
+    src/modules/physicalmemory/physicalmemory.c
     src/modules/processes/processes.c
     src/modules/player/player.c
     src/modules/poweradapter/poweradapter.c
@@ -392,6 +396,7 @@ if(LINUX)
         src/detection/battery/battery_linux.c
         src/detection/bios/bios_linux.c
         src/detection/board/board_linux.c
+        src/detection/bootmgr/bootmgr_linux.c
         src/detection/brightness/brightness_linux.c
         src/detection/chassis/chassis_linux.c
         src/detection/cpu/cpu_linux.c
@@ -400,6 +405,7 @@ if(LINUX)
         src/detection/bluetooth/bluetooth_linux.c
         src/detection/disk/disk_linux.c
         src/detection/physicaldisk/physicaldisk_linux.c
+        src/detection/physicalmemory/physicalmemory_linux.c
         src/detection/diskio/diskio_linux.c
         src/detection/displayserver/linux/displayserver_linux.c
         src/detection/displayserver/linux/drm.c
@@ -466,6 +472,7 @@ elseif(ANDROID)
         src/detection/cpuusage/cpuusage_linux.c
         src/detection/disk/disk_linux.c
         src/detection/physicaldisk/physicaldisk_linux.c
+        src/detection/physicalmemory/physicalmemory_nosupport.c
         src/detection/diskio/diskio_linux.c
         src/detection/displayserver/displayserver_android.c
         src/detection/font/font_nosupport.c
@@ -516,6 +523,7 @@ elseif(BSD)
         src/detection/bios/bios_bsd.c
         src/detection/bluetooth/bluetooth_linux.c
         src/detection/board/board_bsd.c
+        src/detection/bootmgr/bootmgr_nosupport.c
         src/detection/brightness/brightness_bsd.c
         src/detection/chassis/chassis_bsd.c
         src/detection/cpu/cpu_bsd.c
@@ -523,6 +531,7 @@ elseif(BSD)
         src/detection/cursor/cursor_linux.c
         src/detection/disk/disk_bsd.c
         src/detection/physicaldisk/physicaldisk_bsd.c
+        src/detection/physicalmemory/physicalmemory_linux.c
         src/detection/diskio/diskio_bsd.c
         src/detection/displayserver/linux/displayserver_linux.c
         src/detection/displayserver/linux/drm.c
@@ -583,6 +592,7 @@ elseif(APPLE)
         src/detection/bios/bios_apple.c
         src/detection/bluetooth/bluetooth_apple.m
         src/detection/board/board_apple.c
+        src/detection/bootmgr/bootmgr_nosupport.c
         src/detection/brightness/brightness_apple.c
         src/detection/chassis/chassis_nosupport.c
         src/detection/cpu/cpu_apple.c
@@ -590,6 +600,7 @@ elseif(APPLE)
         src/detection/cursor/cursor_apple.m
         src/detection/disk/disk_bsd.c
         src/detection/physicaldisk/physicaldisk_apple.c
+        src/detection/physicalmemory/physicalmemory_apple.m
         src/detection/diskio/diskio_apple.c
         src/detection/displayserver/displayserver_apple.c
         src/detection/font/font_apple.m
@@ -641,6 +652,7 @@ elseif(WIN32)
         src/detection/bios/bios_windows.c
         src/detection/bluetooth/bluetooth_windows.c
         src/detection/board/board_windows.c
+        src/detection/bootmgr/bootmgr_windows.c
         src/detection/brightness/brightness_windows.cpp
         src/detection/chassis/chassis_windows.c
         src/detection/cpu/cpu_windows.c
@@ -662,6 +674,7 @@ elseif(WIN32)
         src/detection/gamepad/gamepad_windows.c
         src/detection/media/media_nosupport.c
         src/detection/memory/memory_windows.c
+        src/detection/physicalmemory/physicalmemory_linux.c
         src/detection/monitor/monitor_windows.c
         src/detection/netio/netio_windows.c
         src/detection/opengl/opengl_windows.c
@@ -773,7 +786,7 @@ if(BSD AND EXISTS "/usr/local/bin/objdump")
     endif()
 endif()
 
-target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE _XOPEN_SOURCE __STDC_WANT_LIB_EXT1__=1)
+target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE _XOPEN_SOURCE __STDC_WANT_LIB_EXT1__=1 _FILE_OFFSET_BITS=64)
 if(WIN32)
     target_compile_definitions(libfastfetch PUBLIC WIN32_LEAN_AND_MEAN=1)
 elseif(APPLE)
