@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.12.0
+    VERSION 2.13.2
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -77,6 +77,13 @@ option(BUILD_TESTS "Build tests" OFF) # Also create test executables
 option(SET_TWEAK "Add tweak to project version" ON) # This is set to off by github actions for release builds
 option(IS_MUSL "Build with musl libc" OFF) # Used by Github Actions
 
+set(BINARY_LINK_TYPE_OPTIONS dlopen dynamic static)
+set(BINARY_LINK_TYPE dlopen CACHE STRING "How to link fastfetch")
+set_property(CACHE BINARY_LINK_TYPE PROPERTY STRINGS ${BINARY_LINK_TYPE_OPTIONS})
+if(NOT BINARY_LINK_TYPE IN_LIST BINARY_LINK_TYPE_OPTIONS)
+    message(FATAL_ERROR "BINARY_LINK_TYPE must be one of ${BINARY_LINK_TYPE_OPTIONS}")
+endif()
+
 if (LINUX)
     set(CUSTOM_PCI_IDS_PATH "" CACHE STRING "Custom path to file pci.ids, defaults to `/usr/share/hwdata/pci.ids`")
     set(CUSTOM_AMDGPU_IDS_PATH "" CACHE STRING "Custom path to file amdgpu.ids, defaults to `/usr/share/libdrm/amdgpu.ids`")
@@ -115,7 +122,7 @@ endif()
 
 if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--tsaware -Wl,--build-id -Wl,--subsystem,console:6.1,--major-os-version,6,--minor-os-version,1")
-elseif(APPLE)
+elseif(APPLE AND CMAKE_C_COMPILER_ID MATCHES "Clang")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fobjc-arc")
 endif()
 
@@ -291,6 +298,7 @@ set(LIBFASTFETCH_SRC
     src/detection/disk/disk.c
     src/detection/diskio/diskio.c
     src/detection/displayserver/displayserver.c
+    src/detection/editor/editor.c
     src/detection/font/font.c
     src/detection/gpu/gpu.c
     src/detection/media/media.c
@@ -330,6 +338,7 @@ set(LIBFASTFETCH_SRC
     src/modules/de/de.c
     src/modules/disk/disk.c
     src/modules/diskio/diskio.c
+    src/modules/editor/editor.c
     src/modules/font/font.c
     src/modules/gpu/gpu.c
     src/modules/host/host.c
@@ -465,6 +474,7 @@ elseif(ANDROID)
         src/detection/bios/bios_android.c
         src/detection/bluetooth/bluetooth_nosupport.c
         src/detection/board/board_android.c
+        src/detection/bootmgr/bootmgr_nosupport.c
         src/detection/brightness/brightness_nosupport.c
         src/detection/chassis/chassis_nosupport.c
         src/detection/cpu/cpu_linux.c
@@ -523,7 +533,7 @@ elseif(BSD)
         src/detection/bios/bios_bsd.c
         src/detection/bluetooth/bluetooth_linux.c
         src/detection/board/board_bsd.c
-        src/detection/bootmgr/bootmgr_nosupport.c
+        src/detection/bootmgr/bootmgr_bsd.c
         src/detection/brightness/brightness_bsd.c
         src/detection/chassis/chassis_bsd.c
         src/detection/cpu/cpu_bsd.c
@@ -592,7 +602,7 @@ elseif(APPLE)
         src/detection/bios/bios_apple.c
         src/detection/bluetooth/bluetooth_apple.m
         src/detection/board/board_apple.c
-        src/detection/bootmgr/bootmgr_nosupport.c
+        src/detection/bootmgr/bootmgr_apple.c
         src/detection/brightness/brightness_apple.c
         src/detection/chassis/chassis_nosupport.c
         src/detection/cpu/cpu_apple.c
@@ -814,6 +824,11 @@ if(NOT "${CUSTOM_OS_RELEASE_PATH}" STREQUAL "")
     target_compile_definitions(libfastfetch PRIVATE FF_CUSTOM_OS_RELEASE_PATH=${CUSTOM_OS_RELEASE_PATH})
 endif()
 
+if(NOT BINARY_LINK_TYPE STREQUAL "dlopen")
+    message(STATUS "Enabling custom link type: ${BINARY_LINK_TYPE}")
+    target_compile_definitions(libfastfetch PRIVATE FF_DISABLE_DLOPEN=1)
+endif()
+
 function(ff_lib_enable VARNAME PKGCONFIG_NAMES CMAKE_NAME)
     if(NOT ENABLE_${VARNAME})
         return()
@@ -841,6 +856,11 @@ function(ff_lib_enable VARNAME PKGCONFIG_NAMES CMAKE_NAME)
 
     target_compile_definitions(libfastfetch PRIVATE FF_HAVE_${VARNAME}=1)
     target_include_directories(libfastfetch PRIVATE ${${VARNAME}_INCLUDE_DIRS})
+
+    if(NOT BINARY_LINK_TYPE STREQUAL "dlopen")
+        target_link_directories(libfastfetch PUBLIC ${${VARNAME}_LIBRARY_DIRS})
+        target_link_libraries(libfastfetch PRIVATE ${${VARNAME}_LIBRARIES})
+    endif()
 
     foreach(FLAG ${${VARNAME}_CFLAGS_OTHER})
         if(FLAG MATCHES "-D.*")
@@ -1088,6 +1108,11 @@ elseif(APPLE)
     target_link_options(flashfetch
         PRIVATE LINKER:-sectcreate,__TEXT,__info_plist,Info.plist
     )
+endif()
+
+if(BINARY_LINK_TYPE STREQUAL "static")
+    target_link_options(fastfetch PRIVATE "-static")
+    target_link_options(flashfetch PRIVATE "-static")
 endif()
 
 ###################

@@ -31,7 +31,7 @@ static bool parseLsbRelease(const char* fileName, FFOSResult* result)
 
 static bool parseOsRelease(const char* fileName, FFOSResult* result)
 {
-    return ffParsePropFileValues(fileName, 10, (FFpropquery[]) {
+    return ffParsePropFileValues(fileName, 11, (FFpropquery[]) {
         {"PRETTY_NAME =", &result->prettyName},
         {"NAME =", &result->name},
         {"ID =", &result->id},
@@ -41,7 +41,8 @@ static bool parseOsRelease(const char* fileName, FFOSResult* result)
         {"VERSION =", &result->version},
         {"VERSION_ID =", &result->versionID},
         {"VERSION_CODENAME =", &result->codename},
-        {"BUILD_ID =", &result->buildID}
+        {"CODENAME =", &result->codename},
+        {"BUILD_ID =", &result->buildID},
     });
 }
 

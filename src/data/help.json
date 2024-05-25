@@ -534,10 +534,11 @@
             "desc": "Set the percentage output type",
             "remark": [
                 "1 for percentage number",
-                "2 for bar",
+                "2 for multi-color bar",
                 "3 for both",
                 "6 for bar only",
-                "9 for colored number"
+                "9 for colored number",
+                "10 for monochrome bar"
             ],
             "arg": {
                 "type": "num",
@@ -1153,6 +1154,15 @@
             }
         },
         {
+            "long": "cpu-show-pe-core-count",
+            "desc": "Detect and display CPU frequency of different core types (eg. Pcore and Ecore) if supported",
+            "arg": {
+                "type": "bool",
+                "optional": true,
+                "default": false
+            }
+        },
+        {
             "long": "cpuusage-separate",
             "desc": "Display CPU usage per CPU logical core, instead of an average result",
             "arg": {
@@ -1197,13 +1207,18 @@
             }
         },
         {
-            "long": "gpu-force-vulkan",
-            "desc": "Force using vulkan to detect GPUs",
-            "remark": "Vulkan supports video memory usage detection",
+            "long": "gpu-detection-method",
+            "desc": "Force using a specified method to detect GPUs",
+            "remark": "Will fall back to next methods if the specified method fails",
             "arg": {
-                "type": "bool",
-                "optional": true,
-                "default": false
+                "type": "enum",
+                "enum": {
+                    "auto": "Query platform specific graphic APIs. Requires proper GPU drivers installed. Not supported on FreeBSD",
+                    "pci": "Search PCI devices, which do not requires GPU driver installed. Not supported on Windows and macOS",
+                    "vulkan": "Use Vulkan API. Slow and requires vulkan driver installed. Used for Android",
+                    "opengl": "Use OpenGL API. Slow and only detects one GPU"
+                },
+                "default": "auto"
             }
         },
         {

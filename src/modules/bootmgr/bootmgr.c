@@ -22,8 +22,11 @@ void ffPrintBootmgr(FFBootmgrOptions* options)
     }
 
     FF_STRBUF_AUTO_DESTROY firmwareName = ffStrbufCreateCopy(&bootmgr.firmware);
-    ffStrbufSubstrBeforeLastC(&firmwareName, '.');
+    #ifndef __APPLE__
     ffStrbufSubstrAfterLastC(&firmwareName, '\\');
+    #else
+    ffStrbufSubstrAfterLastC(&firmwareName, '/');
+    #endif
 
     if(options->moduleArgs.outputFormat.length == 0)
     {
@@ -123,7 +126,7 @@ void ffInitBootmgrOptions(FFBootmgrOptions* options)
     ffOptionInitModuleBaseInfo(
         &options->moduleInfo,
         FF_BOOTMGR_MODULE_NAME,
-        "Print boot manager name, firmware, etc",
+        "Print information of 2nd-stage bootloader (name, firmware, etc)",
         ffParseBootmgrCommandOptions,
         ffParseBootmgrJsonObject,
         ffPrintBootmgr,
