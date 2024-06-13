@@ -12,6 +12,7 @@ typedef struct FFOptionsModules
     FFBreakOptions break_;
     FFBrightnessOptions brightness;
     FFCPUOptions cpu;
+    FFCPUCacheOptions cpuCache;
     FFCPUUsageOptions cpuUsage;
     FFCameraOptions camera;
     FFChassisOptions chassis;
@@ -24,6 +25,7 @@ typedef struct FFOptionsModules
     FFDiskOptions disk;
     FFDiskIOOptions diskIo;
     FFDisplayOptions display;
+    FFDNSOptions dns;
     FFEditorOptions editor;
     FFFontOptions font;
     FFGPUOptions gpu;

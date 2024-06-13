@@ -17,6 +17,7 @@
     "board",
     "chassis",
     "kernel",
+    "initsystem",
     "uptime",
     "loadavg",
     "processes",
@@ -41,10 +42,15 @@
     "terminaltheme",
     {
         "type": "cpu",
-        "showPeCoreCount": true
+        "showPeCoreCount": true,
+        "temp": true
     },
+    "cpucache",
     "cpuusage",
-    "gpu",
+    {
+        "type": "gpu",
+        "temp": true
+    },
     "memory",
     "physicalmemory",
     "swap",
@@ -56,7 +62,7 @@
     "publicip",
     {
         "type": "localip",
-        "showIpV6": true,
+        "showIpv6": true,
         "showMac": true
     },
     "wifi",
@@ -76,7 +82,10 @@
     },
     "netio",
     "diskio",
-    "physicaldisk",
+    {
+        "type": "physicaldisk",
+        "temp": true
+    },
     "version",
     "break",
     "colors"

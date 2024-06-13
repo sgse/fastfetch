@@ -13,6 +13,7 @@ void ffOptionsInitModules(FFOptionsModules* options)
     ffInitCameraOptions(&options->camera);
     ffInitCPUOptions(&options->cpu);
     ffInitCPUUsageOptions(&options->cpuUsage);
+    ffInitCPUCacheOptions(&options->cpuCache);
     ffInitChassisOptions(&options->chassis);
     ffInitColorsOptions(&options->colors);
     ffInitCommandOptions(&options->command);
@@ -23,6 +24,7 @@ void ffOptionsInitModules(FFOptionsModules* options)
     ffInitDiskOptions(&options->disk);
     ffInitDiskIOOptions(&options->diskIo);
     ffInitDisplayOptions(&options->display);
+    ffInitDNSOptions(&options->dns);
     ffInitEditorOptions(&options->editor);
     ffInitFontOptions(&options->font);
     ffInitGPUOptions(&options->gpu);
@@ -81,6 +83,7 @@ void ffOptionsDestroyModules(FFOptionsModules* options)
     ffDestroyBrightnessOptions(&options->brightness);
     ffDestroyCameraOptions(&options->camera);
     ffDestroyCPUOptions(&options->cpu);
+    ffDestroyCPUCacheOptions(&options->cpuCache);
     ffDestroyCPUUsageOptions(&options->cpuUsage);
     ffDestroyChassisOptions(&options->chassis);
     ffDestroyColorsOptions(&options->colors);
@@ -92,6 +95,7 @@ void ffOptionsDestroyModules(FFOptionsModules* options)
     ffDestroyDiskOptions(&options->disk);
     ffDestroyDiskIOOptions(&options->diskIo);
     ffDestroyDisplayOptions(&options->display);
+    ffDestroyDNSOptions(&options->dns);
     ffDestroyEditorOptions(&options->editor);
     ffDestroyFontOptions(&options->font);
     ffDestroyGPUOptions(&options->gpu);
