@@ -43,7 +43,8 @@ static const char* openCLHandleData(OpenCLData* data, FFOpenCLResult* result)
         if (data->ffclGetPlatformInfo(platforms[iplat], CL_PLATFORM_VERSION, sizeof(buffer), buffer, NULL) != CL_SUCCESS)
             return "clGetPlatformInfo() failed";
 
-        if (iplat == 0)
+        // Use the newest supported OpenCL version
+        if (ffStrbufCompS(&result->version, buffer) < 0)
         {
             const char* versionPretty = buffer;
             if(ffStrStartsWithIgnCase(buffer, "OpenCL "))
@@ -60,7 +61,8 @@ static const char* openCLHandleData(OpenCLData* data, FFOpenCLResult* result)
 
         cl_device_id deviceIDs[32];
         cl_uint numDevices = (cl_uint) (sizeof(deviceIDs) / sizeof(deviceIDs[0]));
-        data->ffclGetDeviceIDs(platforms[iplat], CL_DEVICE_TYPE_GPU, numDevices, deviceIDs, &numDevices);
+        if (data->ffclGetDeviceIDs(platforms[iplat], CL_DEVICE_TYPE_GPU, numDevices, deviceIDs, &numDevices) != CL_SUCCESS)
+            continue;
 
         for (cl_uint idev = 0; idev < numDevices; ++idev)
         {
@@ -77,7 +79,7 @@ static const char* openCLHandleData(OpenCLData* data, FFOpenCLResult* result)
             gpu->coreCount = FF_GPU_CORE_COUNT_UNSET;
             gpu->type = FF_GPU_TYPE_UNKNOWN;
             gpu->dedicated.total = gpu->dedicated.used = gpu->shared.total = gpu->shared.used = FF_GPU_VMEM_SIZE_UNSET;
-            gpu->deviceId = 0;
+            gpu->deviceId = (size_t) deviceID;
             gpu->frequency = FF_GPU_FREQUENCY_UNSET;
 
             if (data->ffclGetDeviceInfo(deviceID, CL_DEVICE_VERSION, sizeof(buffer), buffer, NULL) == CL_SUCCESS)
