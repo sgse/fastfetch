@@ -490,7 +490,7 @@ static bool getTerminalVersionKitty(FFstrbuf* exe, FFstrbuf* version)
         for (const char* p = versionHex; p[0] && p[1]; p += 2)
         {
             unsigned value;
-            if (sscanf(p, "%2x", &value))
+            if (sscanf(p, "%2x", &value) == 1)
                 ffStrbufAppendC(version, (char) value);
         }
         return true;
@@ -498,6 +498,20 @@ static bool getTerminalVersionKitty(FFstrbuf* exe, FFstrbuf* version)
 
     //kitty 0.21.2 created by Kovid Goyal
     return getExeVersionGeneral(exe, version);
+}
+
+FF_MAYBE_UNUSED static bool getTerminalVersionPtyxis(FF_MAYBE_UNUSED FFstrbuf* exe, FFstrbuf* version)
+{
+    if(ffProcessAppendStdOut(version, (char* const[]) {
+        "ptyxis",
+        "--version",
+        NULL
+    }) != NULL)
+        return false;
+
+    ffStrbufSubstrBeforeFirstC(version, '\n');
+    ffStrbufSubstrAfterFirstC(version, ' ');
+    return true;
 }
 #endif
 
@@ -594,6 +608,9 @@ bool fftsGetTerminalVersion(FFstrbuf* processName, FF_MAYBE_UNUSED FFstrbuf* exe
         ffStrbufIgnCaseEqualS(processName, "rxvt-unicode")
     )
         return getTerminalVersionUrxvt(exe, version);
+
+    if(ffStrbufIgnCaseEqualS(processName, "ptyxis-agent"))
+        return getTerminalVersionPtyxis(exe, version);
 
     #endif
 
