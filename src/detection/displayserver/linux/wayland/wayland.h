@@ -14,6 +14,7 @@ typedef enum WaylandProtocolType
     FF_WAYLAND_PROTOCOL_TYPE_NONE,
     FF_WAYLAND_PROTOCOL_TYPE_GLOBAL,
     FF_WAYLAND_PROTOCOL_TYPE_ZWLR,
+    FF_WAYLAND_PROTOCOL_TYPE_KDE,
 } WaylandProtocolType;
 
 typedef struct WaylandData
@@ -26,6 +27,8 @@ typedef struct WaylandData
     struct wl_display* display;
     const struct wl_interface* ffwl_output_interface;
     WaylandProtocolType protocolType;
+    uint64_t primaryDisplayId;
+    struct wl_proxy* zxdgOutputManager;
 } WaylandData;
 
 typedef struct WaylandDisplay
@@ -40,6 +43,7 @@ typedef struct WaylandDisplay
     FFstrbuf name;
     FFstrbuf description;
     FFstrbuf edidName;
+    uint64_t id;
     void* internal;
 } WaylandDisplay;
 
@@ -53,5 +57,8 @@ void ffWaylandOutputDescriptionListener(void* data, FF_MAYBE_UNUSED void* output
 
 void ffWaylandHandleGlobalOutput(WaylandData* wldata, struct wl_registry* registry, uint32_t name, uint32_t version);
 void ffWaylandHandleZwlrOutput(WaylandData* wldata, struct wl_registry* registry, uint32_t name, uint32_t version);
+void ffWaylandHandleKdeOutput(WaylandData* wldata, struct wl_registry* registry, uint32_t name, uint32_t version);
+void ffWaylandHandleKdeOutputOrder(WaylandData* wldata, struct wl_registry* registry, uint32_t name, uint32_t version);
+void ffWaylandHandleZxdgOutput(WaylandData* wldata, struct wl_registry* registry, uint32_t name, uint32_t version);
 
 #endif

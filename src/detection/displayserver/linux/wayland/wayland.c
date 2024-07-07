@@ -11,6 +11,9 @@
 
 #include "wayland.h"
 #include "wlr-output-management-unstable-v1-client-protocol.h"
+#include "kde-output-device-v2-client-protocol.h"
+#include "kde-output-order-v1-client-protocol.h"
+#include "xdg-output-unstable-v1-client-protocol.h"
 
 #ifndef __FreeBSD__
 static void waylandDetectWM(int fd, FFDisplayServerResult* result)
@@ -46,6 +49,19 @@ static void waylandGlobalAddListener(void* data, struct wl_registry* registry, u
     {
         wldata->protocolType = FF_WAYLAND_PROTOCOL_TYPE_ZWLR;
         ffWaylandHandleZwlrOutput(wldata, registry, name, version);
+    }
+    else if((wldata->protocolType == FF_WAYLAND_PROTOCOL_TYPE_NONE || wldata->protocolType == FF_WAYLAND_PROTOCOL_TYPE_KDE) && ffStrEquals(interface, kde_output_device_v2_interface.name))
+    {
+        wldata->protocolType = FF_WAYLAND_PROTOCOL_TYPE_KDE;
+        ffWaylandHandleKdeOutput(wldata, registry, name, version);
+    }
+    else if(ffStrEquals(interface, kde_output_order_v1_interface.name))
+    {
+        ffWaylandHandleKdeOutputOrder(wldata, registry, name, version);
+    }
+    else if((wldata->protocolType == FF_WAYLAND_PROTOCOL_TYPE_GLOBAL || wldata->protocolType == FF_WAYLAND_PROTOCOL_TYPE_NONE) && ffStrEquals(interface, zxdg_output_manager_v1_interface.name))
+    {
+        ffWaylandHandleZxdgOutput(wldata, registry, name, version);
     }
 }
 
@@ -90,8 +106,23 @@ bool detectWayland(FFDisplayServerResult* result)
     data.ffwl_proxy_add_listener(registry, (void(**)(void)) &registry_listener, &data);
     data.ffwl_display_roundtrip(data.display);
 
+    if (data.zxdgOutputManager)
+        data.ffwl_proxy_destroy(data.zxdgOutputManager);
+
     data.ffwl_proxy_destroy(registry);
     ffwl_display_disconnect(data.display);
+
+    if(data.primaryDisplayId)
+    {
+        FF_LIST_FOR_EACH(FFDisplayResult, d, data.result->displays)
+        {
+            if(d->id == data.primaryDisplayId)
+            {
+                d->primary = true;
+                break;
+            }
+        }
+    }
 
     //We successfully connected to wayland and detected the display.
     //So we can set set the session type to wayland.
@@ -107,7 +138,9 @@ void ffWaylandOutputNameListener(void* data, FF_MAYBE_UNUSED void* output, const
         display->type = FF_DISPLAY_TYPE_BUILTIN;
     else if(ffStrStartsWith(name, "HDMI-"))
         display->type = FF_DISPLAY_TYPE_EXTERNAL;
-    ffdsMatchDrmConnector(name, &display->edidName);
+    if (!display->edidName.length)
+        ffdsMatchDrmConnector(name, &display->edidName);
+    strncpy((char*) &display->id, name, sizeof(display->id));
     ffStrbufAppendS(&display->name, name);
 }
 
