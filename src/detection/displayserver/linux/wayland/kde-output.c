@@ -92,24 +92,23 @@ static void waylandKdeGeometryListener(void *data,
     FF_MAYBE_UNUSED struct kde_output_device_v2 *kde_output_device_v2,
     FF_MAYBE_UNUSED int32_t x,
     FF_MAYBE_UNUSED int32_t y,
-    FF_MAYBE_UNUSED int32_t physical_width,
-    FF_MAYBE_UNUSED int32_t physical_height,
+    int32_t physical_width,
+    int32_t physical_height,
     FF_MAYBE_UNUSED int32_t subpixel,
     FF_MAYBE_UNUSED const char *make,
     FF_MAYBE_UNUSED const char *model,
     int32_t transform)
 {
     WaylandDisplay* display = data;
+    display->physicalWidth = physical_width;
+    display->physicalHeight = physical_height;
     display->transform = (enum wl_output_transform) transform;
 }
 
 void waylandOutputNameListener(void* data, FF_MAYBE_UNUSED struct kde_output_device_v2* output, const char *name)
 {
     WaylandDisplay* display = data;
-    if(ffStrStartsWith(name, "eDP-"))
-        display->type = FF_DISPLAY_TYPE_BUILTIN;
-    else if(ffStrStartsWith(name, "HDMI-"))
-        display->type = FF_DISPLAY_TYPE_EXTERNAL;
+    display->type = ffdsGetDisplayType(name);
     strncpy((char*) &display->id, name, sizeof(display->id));
     ffStrbufAppendS(&display->name, name);
 }
@@ -215,7 +214,9 @@ void ffWaylandHandleKdeOutput(WaylandData* wldata, struct wl_registry* registry,
             : &display.name,
         display.type,
         false,
-        display.id
+        display.id,
+        (uint32_t) display.physicalWidth,
+        (uint32_t) display.physicalHeight
     );
 
     ffStrbufDestroy(&display.description);
@@ -228,7 +229,7 @@ static void waylandKdeOutputOrderListener(void *data, FF_MAYBE_UNUSED struct kde
 {
     uint64_t* id = (uint64_t*) data;
     if (*id == 0)
-        strncpy((char*) id, output_name, sizeof(*id));
+        *id = ffWaylandGenerateIdFromName(output_name);
 }
 
 void ffWaylandHandleKdeOutputOrder(WaylandData* wldata, struct wl_registry* registry, uint32_t name, uint32_t version)

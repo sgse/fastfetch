@@ -1,10 +1,22 @@
 #include "initsystem.h"
 #include "common/processing.h"
+#include <unistd.h>
 
 const char* ffDetectInitSystem(FFInitSystemResult* result)
 {
     const char* error = ffProcessGetBasicInfoLinux((int) result->pid, &result->name, NULL, NULL);
-    if (error) return error;
+    if (error)
+    {
+        #ifdef __ANDROID__
+        if (access("/system/bin/init", F_OK) == 0)
+        {
+            ffStrbufSetStatic(&result->exe, "/system/bin/init");
+            ffStrbufSetStatic(&result->name, "init");
+            return NULL;
+        }
+        #endif
+        return error;
+    }
 
     const char* _;
     // In linux /proc/1/exe is not readable
@@ -17,38 +29,41 @@ const char* ffDetectInitSystem(FFInitSystemResult* result)
             ffStrbufSetS(&result->exe, buf);
     }
 
-    if (ffStrbufEqualS(&result->name, "systemd"))
+    if (instance.config.general.detectVersion)
     {
-        if (ffProcessAppendStdOut(&result->version, (char* const[]) {
-            ffStrbufEndsWithS(&result->exe, "/systemd") ? result->exe.chars : "systemctl", // use exe path in case users have another systemd installed
-            "--version",
-            NULL,
-        }) == NULL && result->version.length)
+        if (ffStrbufEqualS(&result->name, "systemd"))
         {
-            uint32_t iStart = ffStrbufFirstIndexC(&result->version, '(');
-            if (iStart < result->version.length)
+            if (ffProcessAppendStdOut(&result->version, (char* const[]) {
+                ffStrbufEndsWithS(&result->exe, "/systemd") ? result->exe.chars : "systemctl", // use exe path in case users have another systemd installed
+                "--version",
+                NULL,
+            }) == NULL && result->version.length)
             {
-                uint32_t iEnd = ffStrbufNextIndexC(&result->version, iStart + 1, ')');
-                ffStrbufSubstrBefore(&result->version, iEnd);
-                ffStrbufSubstrAfter(&result->version, iStart);
+                uint32_t iStart = ffStrbufFirstIndexC(&result->version, '(');
+                if (iStart < result->version.length)
+                {
+                    uint32_t iEnd = ffStrbufNextIndexC(&result->version, iStart + 1, ')');
+                    ffStrbufSubstrBefore(&result->version, iEnd);
+                    ffStrbufSubstrAfter(&result->version, iStart);
+                }
             }
         }
-    }
-    else if (ffStrbufEqualS(&result->name, "launchd"))
-    {
-        if (ffProcessAppendStdOut(&result->version, (char* const[]) {
-            "/bin/launchctl",
-            "version",
-            NULL,
-        }) == NULL && result->version.length)
+        else if (ffStrbufEqualS(&result->name, "launchd"))
         {
-            uint32_t iStart = ffStrbufFirstIndexS(&result->version, "Version ");
-            if (iStart < result->version.length)
+            if (ffProcessAppendStdOut(&result->version, (char* const[]) {
+                "/bin/launchctl",
+                "version",
+                NULL,
+            }) == NULL && result->version.length)
             {
-                iStart += (uint32_t) strlen("Version");
-                uint32_t iEnd = ffStrbufNextIndexC(&result->version, iStart + 1, ':');
-                ffStrbufSubstrBefore(&result->version, iEnd);
-                ffStrbufSubstrAfter(&result->version, iStart);
+                uint32_t iStart = ffStrbufFirstIndexS(&result->version, "Version ");
+                if (iStart < result->version.length)
+                {
+                    iStart += (uint32_t) strlen("Version");
+                    uint32_t iEnd = ffStrbufNextIndexC(&result->version, iStart + 1, ':');
+                    ffStrbufSubstrBefore(&result->version, iEnd);
+                    ffStrbufSubstrAfter(&result->version, iStart);
+                }
             }
         }
     }

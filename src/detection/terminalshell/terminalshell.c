@@ -226,7 +226,7 @@ static bool getShellVersionGeneric(FFstrbuf* exe, const char* exeName, FFstrbuf*
 
 bool fftsGetShellVersion(FFstrbuf* exe, const char* exeName, FFstrbuf* version)
 {
-    if (!instance.config.display.tsVersion) return false;
+    if (!instance.config.general.detectVersion) return false;
 
     if(ffStrEqualsIgnCase(exeName, "sh")) // #849
         return false;
@@ -352,11 +352,15 @@ FF_MAYBE_UNUSED static bool getTerminalVersionCockpit(FFstrbuf* exe, FFstrbuf* v
 
 FF_MAYBE_UNUSED static bool getTerminalVersionXterm(FFstrbuf* exe, FFstrbuf* version)
 {
-    if(ffProcessAppendStdOut(version, (char* const[]){
-        exe->chars,
-        "-v",
-        NULL
-    })) return false;
+    ffStrbufSetS(version, getenv("XTERM_VERSION"));
+    if (!version->length)
+    {
+        if(ffProcessAppendStdOut(version, (char* const[]){
+            exe->chars,
+            "-v",
+            NULL
+        })) return false;
+    }
 
     //xterm(273)
     ffStrbufTrimRight(version, ')');
@@ -546,7 +550,7 @@ static bool getTerminalVersionConEmu(FFstrbuf* exe, FFstrbuf* version)
 
 bool fftsGetTerminalVersion(FFstrbuf* processName, FF_MAYBE_UNUSED FFstrbuf* exe, FFstrbuf* version)
 {
-    if (!instance.config.display.tsVersion) return false;
+    if (!instance.config.general.detectVersion) return false;
 
     #ifdef __ANDROID__
 

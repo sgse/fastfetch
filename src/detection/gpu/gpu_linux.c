@@ -32,29 +32,42 @@
 
 static bool pciDetectDriver(FFGPUResult* gpu, FFstrbuf* pciDir, FFstrbuf* buffer, FF_MAYBE_UNUSED const char* drmKey)
 {
+    uint32_t pciDirLength = pciDir->length;
     ffStrbufAppendS(pciDir, "/driver");
     char pathBuf[PATH_MAX];
     ssize_t resultLength = readlink(pciDir->chars, pathBuf, sizeof(pathBuf));
-    if(resultLength > 0)
-    {
-        const char* slash = memrchr(pathBuf, '/', (size_t) resultLength);
-        if (slash)
-        {
-            slash++;
-            ffStrbufSetNS(&gpu->driver, (uint32_t) (resultLength - (slash - pathBuf)), slash);
-        }
+    if(resultLength <= 0) return false;
 
+    const char* slash = memrchr(pathBuf, '/', (size_t) resultLength);
+    if (slash)
+    {
+        slash++;
+        ffStrbufSetNS(&gpu->driver, (uint32_t) (resultLength - (slash - pathBuf)), slash);
+    }
+
+    if (instance.config.general.detectVersion)
+    {
         ffStrbufAppendS(pciDir, "/module/version");
         if (ffReadFileBuffer(pciDir->chars, buffer))
         {
             ffStrbufTrimRightSpace(buffer);
             ffStrbufAppendC(&gpu->driver, ' ');
             ffStrbufAppend(&gpu->driver, buffer);
-            return true;
+        }
+        else if (ffStrbufEqualS(&gpu->driver, "zx"))
+        {
+            ffStrbufSubstrBefore(pciDir, pciDirLength);
+            ffStrbufAppendS(pciDir, "/zx_info/driver_version");
+            if (ffReadFileBuffer(pciDir->chars, buffer))
+            {
+                ffStrbufTrimRightSpace(buffer);
+                ffStrbufAppendC(&gpu->driver, ' ');
+                ffStrbufAppend(&gpu->driver, buffer);
+            }
         }
     }
 
-    return false;
+    return true;
 }
 
 static void pciDetectAmdSpecific(const FFGPUOptions* options, FFGPUResult* gpu, FFstrbuf* pciDir, FFstrbuf* buffer)
@@ -78,7 +91,7 @@ static void pciDetectAmdSpecific(const FFGPUOptions* options, FFGPUResult* gpu, 
 
     const uint32_t hwmonLen = pciDir->length;
     ffStrbufAppendS(pciDir, "in1_input"); // Northbridge voltage in millivolts (APUs only)
-    if (ffPathExists(pciDir->chars, FF_PATHTYPE_FILE))
+    if (ffPathExists(pciDir->chars, FF_PATHTYPE_ANY))
         gpu->type = FF_GPU_TYPE_INTEGRATED;
     else
         gpu->type = FF_GPU_TYPE_DISCRETE;
@@ -91,11 +104,6 @@ static void pciDetectAmdSpecific(const FFGPUOptions* options, FFGPUResult* gpu, 
         if (ffReadFileBuffer(pciDir->chars, buffer) && (value = ffStrbufToUInt(buffer, 0)))
             gpu->temperature = (double) value / 1000;
     }
-
-    ffStrbufSubstrBefore(pciDir, hwmonLen);
-    ffStrbufAppendS(pciDir, "freq1_input"); // The gfx/compute clock in hertz
-    if (ffReadFileBuffer(pciDir->chars, buffer) && (value = ffStrbufToUInt(buffer, 0)))
-        gpu->frequency = (double) value / (1000 * 1000 * 1000);
 
     if (options->driverSpecific)
     {
@@ -125,17 +133,24 @@ static void pciDetectIntelSpecific(FFGPUResult* gpu, FFstrbuf* pciDir, FFstrbuf*
         ffStrbufSubstrAfter(&gpu->name, (uint32_t) strlen("Intel "));
     gpu->type = ffStrbufStartsWithIgnCaseS(&gpu->name, "Arc ") ? FF_GPU_TYPE_DISCRETE : FF_GPU_TYPE_INTEGRATED;
 
-    ffStrbufAppendS(pciDir, "/drm/");
-    FF_AUTO_CLOSE_DIR DIR* dirp = opendir(pciDir->chars);
-    if (!dirp) return;
-    struct dirent* entry;
-    while ((entry = readdir(dirp)) != NULL)
+    if (ffStrbufEqualS(&gpu->driver, "xe"))
     {
-        if (ffStrStartsWith(entry->d_name, "card")) break;
+        ffStrbufAppendS(pciDir, "/tile0/gt0/freq0/max_freq");
     }
-    if (!entry) return;
-    ffStrbufAppendS(pciDir, entry->d_name);
-    ffStrbufAppendS(pciDir, "/gt_max_freq_mhz");
+    else
+    {
+        ffStrbufAppendS(pciDir, "/drm/");
+        FF_AUTO_CLOSE_DIR DIR* dirp = opendir(pciDir->chars);
+        if (!dirp) return;
+        struct dirent* entry;
+        while ((entry = readdir(dirp)) != NULL)
+        {
+            if (ffStrStartsWith(entry->d_name, "card")) break;
+        }
+        if (!entry) return;
+        ffStrbufAppendS(pciDir, entry->d_name);
+        ffStrbufAppendS(pciDir, "/gt_max_freq_mhz");
+    }
     if (ffReadFileBuffer(pciDir->chars, buffer))
         gpu->frequency = ffStrbufToDouble(buffer) / 1000.0;
 }
@@ -196,6 +211,14 @@ static const char* detectPci(const FFGPUOptions* options, FFlist* gpus, FFstrbuf
     uint32_t pciDomain, pciBus, pciDevice, pciFunc;
     if (sscanf(pPciPath, "%" SCNx32 ":%" SCNx32 ":%" SCNx32 ".%" SCNx32, &pciDomain, &pciBus, &pciDevice, &pciFunc) != 4)
         return "Invalid PCI device path";
+
+    ffStrbufAppendS(deviceDir, "/enable");
+    if (ffReadFileBuffer(deviceDir->chars, buffer))
+    {
+        if (!ffStrbufStartsWithC(buffer, '1'))
+            return "GPU disabled";
+    }
+    ffStrbufSubstrBefore(deviceDir, drmDirPathLength);
 
     FFGPUResult* gpu = (FFGPUResult*)ffListAdd(gpus);
     ffStrbufInitStatic(&gpu->vendor, ffGetGPUVendorString((uint16_t) vendorId));
