@@ -105,12 +105,18 @@ static void waylandKdeGeometryListener(void *data,
     display->transform = (enum wl_output_transform) transform;
 }
 
-void waylandOutputNameListener(void* data, FF_MAYBE_UNUSED struct kde_output_device_v2* output, const char *name)
+static void waylandKdeNameListener(void* data, FF_MAYBE_UNUSED struct kde_output_device_v2* kde_output_device_v2, const char *name)
 {
     WaylandDisplay* display = data;
     display->type = ffdsGetDisplayType(name);
     strncpy((char*) &display->id, name, sizeof(display->id));
     ffStrbufAppendS(&display->name, name);
+}
+
+static void waylandKdeHdrListener(void *data, FF_MAYBE_UNUSED struct kde_output_device_v2 *kde_output_device_v2, uint32_t hdr_enabled)
+{
+    WaylandDisplay* display = data;
+    display->hdrEnabled = !!hdr_enabled;
 }
 
 static struct kde_output_device_v2_listener outputListener = {
@@ -128,8 +134,8 @@ static struct kde_output_device_v2_listener outputListener = {
     .overscan = (void*) stubListener,
     .vrr_policy = (void*) stubListener,
     .rgb_range = (void*) stubListener,
-    .name = waylandOutputNameListener,
-    .high_dynamic_range = (void*) stubListener,
+    .name = waylandKdeNameListener,
+    .high_dynamic_range = waylandKdeHdrListener,
     .sdr_brightness = (void*) stubListener,
     .wide_color_gamut = (void*) stubListener,
     .auto_rotate_policy = (void*) stubListener,
@@ -169,40 +175,9 @@ void ffWaylandHandleKdeOutput(WaylandData* wldata, struct wl_registry* registry,
     if(display.width <= 0 || display.height <= 0 || !display.internal)
         return;
 
-    uint32_t rotation;
-    switch(display.transform)
-    {
-        case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-        case WL_OUTPUT_TRANSFORM_90:
-            rotation = 90;
-            break;
-        case WL_OUTPUT_TRANSFORM_FLIPPED_180:
-        case WL_OUTPUT_TRANSFORM_180:
-            rotation = 180;
-            break;
-        case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-        case WL_OUTPUT_TRANSFORM_270:
-            rotation = 270;
-            break;
-        default:
-            rotation = 0;
-            break;
-    }
+    uint32_t rotation = ffWaylandHandleRotation(&display);
 
-    switch(rotation)
-    {
-        case 90:
-        case 270: {
-            int32_t temp = display.width;
-            display.width = display.height;
-            display.height = temp;
-            break;
-        }
-        default:
-            break;
-    }
-
-    ffdsAppendDisplay(wldata->result,
+    FFDisplayResult* item = ffdsAppendDisplay(wldata->result,
         (uint32_t) display.width,
         (uint32_t) display.height,
         display.refreshRate / 1000.0,
@@ -218,6 +193,8 @@ void ffWaylandHandleKdeOutput(WaylandData* wldata, struct wl_registry* registry,
         (uint32_t) display.physicalWidth,
         (uint32_t) display.physicalHeight
     );
+    if (item)
+        item->hdrEnabled = display.hdrEnabled;
 
     ffStrbufDestroy(&display.description);
     ffStrbufDestroy(&display.name);

@@ -689,6 +689,14 @@
             }
         },
         {
+            "long": "freq-ndigits",
+            "desc": "Set the number of digits to keep after the decimal point when printing CPU / GPU frequency in GHz",
+            "arg": {
+                "type": "num",
+                "default": 2
+            }
+        },
+        {
             "long": "temp-unit",
             "desc": "Set the unit of the temperature",
             "arg": {
@@ -947,7 +955,7 @@
         },
         {
             "long": "separator-string",
-            "desc": "Set the string printed by the separator module",
+            "desc": "Set the string to be printed by the separator line",
             "arg": {
                 "type": "str",
                 "default": "-"
@@ -955,10 +963,19 @@
         },
         {
             "long": "separator-output-color",
-            "desc": "Set the color of the separator module",
+            "desc": "Set the color of the separator line",
             "arg": {
                 "type": "color",
                 "default": "default"
+            }
+        },
+        {
+            "long": "separator-length",
+            "desc": "Set the length of the separator line",
+            "remark": "Set to 0 to automatically calculate it with the title length",
+            "arg": {
+                "type": "num",
+                "default": "0"
             }
         },
         {
@@ -1166,14 +1183,6 @@
                 "type": "bool",
                 "optional": true,
                 "default": false
-            }
-        },
-        {
-            "long": "cpu-freq-ndigits",
-            "desc": "Set the number of digits to keep after the decimal point when printing CPU frequency",
-            "arg": {
-                "type": "num",
-                "default": 2
             }
         },
         {
@@ -1538,13 +1547,14 @@
                 "type": "enum",
                 "enum": {
                     "block": "\u2588\u2588\u2588",
+                    "background": "(whitespaces with background)",
                     "circle": "\u25cf",
                     "diamond": "\u25c6",
                     "triangle": "\u25b2",
                     "square": "\u25a0",
                     "star": "\u2605"
                 },
-                "default": "block"
+                "default": "background"
             }
         },
         {

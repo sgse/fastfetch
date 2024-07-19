@@ -574,6 +574,20 @@
                         }
                     }
                 },
+                "freq": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Set how frequency values should be displayed",
+                    "properties": {
+                        "ndigits": {
+                            "type": "integer",
+                            "description": "Set the number of digits to keep after the decimal point when formatting frequency values\nA positive value will show the frequency in GHz of decimal\n-1 will show the frequency in MHz",
+                            "minimum": -1,
+                            "maximum": 9,
+                            "default": 2
+                        }
+                    }
+                },
                 "noBuffer": {
                     "type": "boolean",
                     "description": "Whether to disable the stdout application buffer",
@@ -1103,13 +1117,6 @@
                                     "temp": {
                                         "$ref": "#/$defs/temperature"
                                     },
-                                    "freqNdigits": {
-                                        "description": "Set the number of digits to keep after the decimal point when printing CPU frequency",
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 9,
-                                        "default": 2
-                                    },
                                     "showPeCoreCount": {
                                         "description": "Detect and display CPU frequency of different core types (eg. Pcore and Ecore) if supported",
                                         "type": "boolean",
@@ -1180,13 +1187,14 @@
                                         "type": "string",
                                         "enum": [
                                             "block",
+                                            "background",
                                             "circle",
                                             "diamond",
                                             "triangle",
                                             "square",
                                             "star"
                                         ],
-                                        "default": "block"
+                                        "default": "background"
                                     },
                                     "paddingLeft": {
                                         "description": "Set the number of white spaces to print before the symbol",
@@ -1947,12 +1955,19 @@
                                         "const": "separator"
                                     },
                                     "string": {
-                                        "description": "Set the string to be printed",
+                                        "description": "Set the string to be printed by the separator line",
                                         "type": "string",
                                         "default": "-"
                                     },
                                     "outputColor": {
+                                        "description": "Set the color of the separator line",
                                         "$ref": "#/$defs/outputColor"
+                                    },
+                                    "length": {
+                                        "description": "Set the length of the separator line, or 0 to auto-detect",
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "default": 0
                                     }
                                 }
                             },

@@ -96,6 +96,20 @@ void ffParseSize(uint64_t bytes, FFstrbuf* result)
     }
 }
 
+bool ffParseFrequency(uint32_t mhz, FFstrbuf* result)
+{
+    if (mhz == 0)
+        return false;
+
+    int8_t ndigits = instance.config.display.freqNdigits;
+
+    if (ndigits >= 0)
+        ffStrbufAppendF(result, "%.*f GHz", ndigits, mhz / 1000.);
+    else
+        ffStrbufAppendF(result, "%u MHz", (unsigned) mhz);
+    return true;
+}
+
 void ffParseGTK(FFstrbuf* buffer, const FFstrbuf* gtk2, const FFstrbuf* gtk3, const FFstrbuf* gtk4)
 {
     if(gtk2->length > 0 && gtk3->length > 0 && gtk4->length > 0)
