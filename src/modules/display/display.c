@@ -6,7 +6,7 @@
 
 #include <math.h>
 
-#define FF_DISPLAY_NUM_FORMAT_ARGS 13
+#define FF_DISPLAY_NUM_FORMAT_ARGS 16
 
 static int sortByNameAsc(FFDisplayResult* a, FFDisplayResult* b)
 {
@@ -91,10 +91,11 @@ void ffPrintDisplay(FFDisplayOptions* options)
         }
         else
         {
-            FF_PARSE_FORMAT_STRING_CHECKED(&key, &options->moduleArgs.key, 3, ((FFformatarg[]){
+            FF_PARSE_FORMAT_STRING_CHECKED(&key, &options->moduleArgs.key, 4, ((FFformatarg[]){
                 {FF_FORMAT_ARG_TYPE_UINT, &moduleIndex, "index"},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &result->name, "name"},
                 {FF_FORMAT_ARG_TYPE_STRING, displayType, "type"},
+                {FF_FORMAT_ARG_TYPE_STRBUF, &options->moduleArgs.keyIcon, "icon"},
             }));
         }
 
@@ -126,6 +127,9 @@ void ffPrintDisplay(FFDisplayOptions* options)
             if(result->type != FF_DISPLAY_TYPE_UNKNOWN)
                 ffStrbufAppendS(&buffer, result->type == FF_DISPLAY_TYPE_BUILTIN ? " [Built-in]" : " [External]");
 
+            if (result->hdrEnabled)
+                ffStrbufAppendS(&buffer, " [HDR]");
+
             if(moduleIndex > 0 && result->primary)
                 ffStrbufAppendS(&buffer, " *");
 
@@ -150,6 +154,9 @@ void ffPrintDisplay(FFDisplayOptions* options)
                 {FF_FORMAT_ARG_TYPE_UINT, &result->physicalHeight, "physical-height"},
                 {FF_FORMAT_ARG_TYPE_DOUBLE, &inch, "inch"},
                 {FF_FORMAT_ARG_TYPE_DOUBLE, &ppi, "ppi"},
+                {FF_FORMAT_ARG_TYPE_UINT8, &result->bitDepth, "bit-depth"},
+                {FF_FORMAT_ARG_TYPE_BOOL, &result->hdrEnabled, "hdr-enabled"},
+                {FF_FORMAT_ARG_TYPE_BOOL, &result->wcgEnabled, "wcg-enabled"},
             }));
         }
     }
@@ -319,6 +326,7 @@ void ffGenerateDisplayJsonResult(FF_MAYBE_UNUSED FFDisplayOptions* options, yyjs
         yyjson_mut_obj_add_uint(doc, obj, "rotation", item->rotation);
         yyjson_mut_obj_add_uint(doc, obj, "bitDepth", item->bitDepth);
         yyjson_mut_obj_add_bool(doc, obj, "hdrEnabled", item->hdrEnabled);
+        yyjson_mut_obj_add_bool(doc, obj, "wcgEnabled", item->wcgEnabled);
 
         switch (item->type)
         {
@@ -351,6 +359,9 @@ void ffPrintDisplayHelpFormat(void)
         "Screen physical height (in millimeters) - physical-height",
         "Physical diagonal length in inches - inch",
         "Pixels per inch (PPI) - ppi",
+        "Bits per color channel - bit-depth",
+        "True if high dynamic range (HDR) is enabled - hdr-enabled",
+        "True if wide color gamut (WCG) is enabled - wcg-enabled",
     }));
 }
 
@@ -367,7 +378,7 @@ void ffInitDisplayOptions(FFDisplayOptions* options)
         ffPrintDisplayHelpFormat,
         ffGenerateDisplayJsonConfig
     );
-    ffOptionInitModuleArg(&options->moduleArgs);
+    ffOptionInitModuleArg(&options->moduleArgs, "󰍹");
     options->compactType = FF_DISPLAY_COMPACT_TYPE_NONE;
     options->preciseRefreshRate = false;
 }

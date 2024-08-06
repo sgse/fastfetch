@@ -200,28 +200,6 @@ static bool getShellVersionWinPowerShell(FFstrbuf* exe, FFstrbuf* version)
         NULL
     }) == NULL;
 }
-#else
-static bool getShellVersionGeneric(FFstrbuf* exe, const char* exeName, FFstrbuf* version)
-{
-    FF_STRBUF_AUTO_DESTROY command = ffStrbufCreate();
-    ffStrbufAppendS(&command, "printf \"%s\" \"$");
-    ffStrbufAppendTransformS(&command, exeName, toupper);
-    ffStrbufAppendS(&command, "_VERSION\"");
-
-    if (ffProcessAppendStdOut(version, (char* const[]) {
-        "env",
-        "-i",
-        exe->chars,
-        "-c",
-        command.chars,
-        NULL
-    }) != NULL)
-        return false;
-
-    ffStrbufSubstrBeforeFirstC(version, '(');
-    ffStrbufRemoveStrings(version, 2, (const char*[]) { "-release", "release" });
-    return true;
-}
 #endif
 
 bool fftsGetShellVersion(FFstrbuf* exe, const char* exeName, FFstrbuf* version)
@@ -261,9 +239,9 @@ bool fftsGetShellVersion(FFstrbuf* exe, const char* exeName, FFstrbuf* version)
         return getShellVersionWinPowerShell(exe, version);
 
     return getFileVersion(exe->chars, version);
-    #else
-    return getShellVersionGeneric(exe, exeName, version);
     #endif
+
+    return false;
 }
 
 FF_MAYBE_UNUSED static bool getTerminalVersionTermux(FFstrbuf* version)
@@ -507,11 +485,11 @@ static bool getTerminalVersionZed(FFstrbuf* exe, FFstrbuf* version)
 #ifndef _WIN32
 static bool getTerminalVersionKitty(FFstrbuf* exe, FFstrbuf* version)
 {
-    char versionHex[64] = "";
+    char versionHex[64];
     // https://github.com/fastfetch-cli/fastfetch/discussions/1030#discussioncomment-9845233
     if (ffGetTerminalResponse(
         "\eP+q6b697474792d71756572792d76657273696f6e\e\\", // kitty-query-version
-        "\eP1+r%*[^=]=%64[^\e]\e\\\\", versionHex) == NULL && *versionHex)
+        "\eP1+r%*[^=]=%63[^\e]\e\\\\", versionHex) == NULL)
     {
         // decode hex string
         for (const char* p = versionHex; p[0] && p[1]; p += 2)

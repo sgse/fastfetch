@@ -61,17 +61,7 @@ const char* ffOptionsParseDisplayJsonConfig(FFOptionsDisplay* options, yyjson_va
         else if (ffStrEqualsIgnCase(key, "brightColor"))
             options->brightColor = yyjson_get_bool(val);
         else if (ffStrEqualsIgnCase(key, "binaryPrefix"))
-        {
-            int value;
-            const char* error = ffJsonConfigParseEnum(val, &value, (FFKeyValuePair[]) {
-                { "iec", FF_BINARY_PREFIX_TYPE_IEC },
-                { "si", FF_BINARY_PREFIX_TYPE_SI },
-                { "jedec", FF_BINARY_PREFIX_TYPE_JEDEC },
-                {},
-            });
-            if (error) return error;
-            options->binaryPrefixType = (FFBinaryPrefixType) value;
-        }
+            return "`display.binaryPrefix` has been renamed to `display.size.binaryPrefix`. Sorry for another break change.";
         else if (ffStrEqualsIgnCase(key, "size"))
         {
             if (!yyjson_is_obj(val))
@@ -95,6 +85,20 @@ const char* ffOptionsParseDisplayJsonConfig(FFOptionsDisplay* options, yyjson_va
                 });
                 if (error) return error;
                 options->sizeMaxPrefix = (uint8_t) value;
+            }
+
+            yyjson_val* binaryPrefix = yyjson_obj_get(val, "binaryPrefix");
+            if (binaryPrefix)
+            {
+                int value;
+                const char* error = ffJsonConfigParseEnum(binaryPrefix, &value, (FFKeyValuePair[]) {
+                    { "iec", FF_SIZE_BINARY_PREFIX_TYPE_IEC },
+                    { "si", FF_SIZE_BINARY_PREFIX_TYPE_SI },
+                    { "jedec", FF_SIZE_BINARY_PREFIX_TYPE_JEDEC },
+                    {},
+                });
+                if (error) return error;
+                options->sizeBinaryPrefix = (FFSizeBinaryPrefixType) value;
             }
 
             yyjson_val* ndigits = yyjson_obj_get(val, "ndigits");
@@ -198,7 +202,37 @@ const char* ffOptionsParseDisplayJsonConfig(FFOptionsDisplay* options, yyjson_va
         else if (ffStrEqualsIgnCase(key, "noBuffer"))
             options->noBuffer = yyjson_get_bool(val);
         else if (ffStrEqualsIgnCase(key, "keyWidth"))
-            options->keyWidth = (uint32_t) yyjson_get_uint(val);
+            return "display.keyWidth has been renamed to display.key.width";
+        else if (ffStrEqualsIgnCase(key, "key"))
+        {
+            if (yyjson_is_obj(val))
+            {
+                yyjson_val* width = yyjson_obj_get(val, "width");
+                if (width)
+                    options->keyWidth = (uint16_t) yyjson_get_uint(width);
+
+                yyjson_val* type = yyjson_obj_get(val, "type");
+                if (type)
+                {
+                    int value;
+                    const char* error = ffJsonConfigParseEnum(type, &value, (FFKeyValuePair[]) {
+                        { "none", FF_MODULE_KEY_TYPE_NONE },
+                        { "string", FF_MODULE_KEY_TYPE_STRING },
+                        { "icon", FF_MODULE_KEY_TYPE_ICON },
+                        { "both", FF_MODULE_KEY_TYPE_BOTH },
+                        {}
+                    });
+                    if (error) return error;
+                    options->keyType = (uint8_t) value;
+                }
+
+                yyjson_val* paddingLeft = yyjson_obj_get(val, "paddingLeft");
+                if (paddingLeft)
+                    options->keyPaddingLeft = (uint16_t) yyjson_get_uint(paddingLeft);
+            }
+            else
+                return "display.key must be an object";
+        }
         else if (ffStrEqualsIgnCase(key, "constants"))
         {
             if (!yyjson_is_arr(val))
@@ -282,35 +316,64 @@ bool ffOptionsParseDisplayCommandLine(FFOptionsDisplay* options, const char* key
         else
             return false;
     }
-    else if(ffStrEqualsIgnCase(key, "--key-width"))
-        options->keyWidth = ffOptionParseUInt32(key, value);
+    else if(ffStrStartsWithIgnCase(key, "--key-"))
+    {
+        const char* subkey = key + strlen("--key-");
+        if(ffStrEqualsIgnCase(subkey, "width"))
+            options->keyWidth = (uint16_t) ffOptionParseUInt32(key, value);
+        else if(ffStrEqualsIgnCase(subkey, "type"))
+        {
+            options->keyType = (FFModuleKeyType) ffOptionParseEnum(key, value, (FFKeyValuePair[]) {
+                { "none", FF_MODULE_KEY_TYPE_NONE },
+                { "string", FF_MODULE_KEY_TYPE_STRING },
+                { "icon", FF_MODULE_KEY_TYPE_ICON },
+                { "both", FF_MODULE_KEY_TYPE_BOTH },
+                {}
+            });
+        }
+        else if(ffStrEqualsIgnCase(subkey, "padding-left"))
+            options->keyPaddingLeft = (uint16_t) ffOptionParseUInt32(key, value);
+        else
+            return false;
+    }
     else if(ffStrEqualsIgnCase(key, "--bright-color"))
         options->brightColor = ffOptionParseBoolean(value);
     else if(ffStrEqualsIgnCase(key, "--binary-prefix"))
     {
-        options->binaryPrefixType = (FFBinaryPrefixType) ffOptionParseEnum(key, value, (FFKeyValuePair[]) {
-            { "iec", FF_BINARY_PREFIX_TYPE_IEC },
-            { "si", FF_BINARY_PREFIX_TYPE_SI },
-            { "jedec", FF_BINARY_PREFIX_TYPE_JEDEC },
-            {}
-        });
+        fprintf(stderr, "--binary-prefix has been renamed to --size-binary-prefix\n");
+        exit(477);
     }
-    else if(ffStrEqualsIgnCase(key, "--size-ndigits"))
-        options->sizeNdigits = (uint8_t) ffOptionParseUInt32(key, value);
-    else if(ffStrEqualsIgnCase(key, "--size-max-prefix"))
+    else if(ffStrStartsWithIgnCase(key, "--size-"))
     {
-        options->sizeMaxPrefix = (uint8_t) ffOptionParseEnum(key, value, (FFKeyValuePair[]) {
-            { "B", 0 },
-            { "kB", 1 },
-            { "MB", 2 },
-            { "GB", 3 },
-            { "TB", 4 },
-            { "PB", 5 },
-            { "EB", 6 },
-            { "ZB", 7 },
-            { "YB", 8 },
-            {}
-        });
+        const char* subkey = key + strlen("--size-");
+        if (ffStrEqualsIgnCase(subkey, "binary-prefix"))
+        {
+            options->sizeBinaryPrefix = (FFSizeBinaryPrefixType) ffOptionParseEnum(key, value, (FFKeyValuePair[]) {
+                { "iec", FF_SIZE_BINARY_PREFIX_TYPE_IEC },
+                { "si", FF_SIZE_BINARY_PREFIX_TYPE_SI },
+                { "jedec", FF_SIZE_BINARY_PREFIX_TYPE_JEDEC },
+                {}
+            });
+        }
+        else if (ffStrEqualsIgnCase(subkey, "ndigits"))
+            options->sizeNdigits = (uint8_t) ffOptionParseUInt32(key, value);
+        else if (ffStrEqualsIgnCase(subkey, "max-prefix"))
+        {
+            options->sizeMaxPrefix = (uint8_t) ffOptionParseEnum(key, value, (FFKeyValuePair[]) {
+                { "B", 0 },
+                { "kB", 1 },
+                { "MB", 2 },
+                { "GB", 3 },
+                { "TB", 4 },
+                { "PB", 5 },
+                { "EB", 6 },
+                { "ZB", 7 },
+                { "YB", 8 },
+                {}
+            });
+        }
+        else
+            return false;
     }
     else if(ffStrStartsWithIgnCase(key, "--temp-"))
     {
@@ -377,6 +440,8 @@ bool ffOptionsParseDisplayCommandLine(FFOptionsDisplay* options, const char* key
         const char* subkey = key + strlen("--freq-");
         if(ffStrEqualsIgnCase(subkey, "ndigits"))
             options->freqNdigits = (int8_t) ffOptionParseInt32(key, value);
+        else
+            return false;
     }
     else
         return false;
@@ -402,12 +467,14 @@ void ffOptionsInitDisplay(FFOptionsDisplay* options)
     #endif
 
     options->hideCursor = false;
-    options->binaryPrefixType = FF_BINARY_PREFIX_TYPE_IEC;
+    options->sizeBinaryPrefix = FF_SIZE_BINARY_PREFIX_TYPE_IEC;
     options->sizeNdigits = 2;
     options->sizeMaxPrefix = UINT8_MAX;
     options->stat = false;
     options->noBuffer = false;
     options->keyWidth = 0;
+    options->keyPaddingLeft = 0;
+    options->keyType = FF_MODULE_KEY_TYPE_STRING;
 
     options->tempUnit = FF_TEMPERATURE_UNIT_CELSIUS;
     options->tempNdigits = 1;
@@ -491,23 +558,6 @@ void ffOptionsGenerateDisplayJsonConfig(FFOptionsDisplay* options, yyjson_mut_do
     if (options->brightColor != defaultOptions.brightColor)
         yyjson_mut_obj_add_bool(doc, obj, "brightColor", options->brightColor);
 
-    if (options->binaryPrefixType != defaultOptions.binaryPrefixType)
-    {
-        switch (options->binaryPrefixType)
-        {
-            case FF_BINARY_PREFIX_TYPE_IEC:
-                yyjson_mut_obj_add_str(doc, obj, "binaryPrefix", "iec");
-                break;
-            case FF_BINARY_PREFIX_TYPE_SI:
-                yyjson_mut_obj_add_str(doc, obj, "binaryPrefix", "si");
-                break;
-            case FF_BINARY_PREFIX_TYPE_JEDEC:
-                yyjson_mut_obj_add_str(doc, obj, "binaryPrefix", "jedec");
-                break;
-
-        }
-    }
-
     {
         yyjson_mut_val* size = yyjson_mut_obj(doc);
         if (options->sizeNdigits != defaultOptions.sizeNdigits)
@@ -525,6 +575,21 @@ void ffOptionsGenerateDisplayJsonConfig(FFOptionsDisplay* options, yyjson_mut_do
                 "ZB",
                 "YB",
             })[options->sizeMaxPrefix]);
+        }
+        if (options->sizeBinaryPrefix != defaultOptions.sizeBinaryPrefix)
+        {
+            switch (options->sizeBinaryPrefix)
+            {
+                case FF_SIZE_BINARY_PREFIX_TYPE_IEC:
+                    yyjson_mut_obj_add_str(doc, size, "binaryPrefix", "iec");
+                    break;
+                case FF_SIZE_BINARY_PREFIX_TYPE_SI:
+                    yyjson_mut_obj_add_str(doc, size, "binaryPrefix", "si");
+                    break;
+                case FF_SIZE_BINARY_PREFIX_TYPE_JEDEC:
+                    yyjson_mut_obj_add_str(doc, size, "binaryPrefix", "jedec");
+                    break;
+            }
         }
         if (yyjson_mut_obj_size(size) > 0)
             yyjson_mut_obj_add_val(doc, obj, "size", size);
@@ -607,6 +672,12 @@ void ffOptionsGenerateDisplayJsonConfig(FFOptionsDisplay* options, yyjson_mut_do
 
     if (options->keyWidth != defaultOptions.keyWidth)
         yyjson_mut_obj_add_uint(doc, obj, "keyWidth", options->keyWidth);
+
+    if (options->keyType != defaultOptions.keyType)
+        yyjson_mut_obj_add_uint(doc, obj, "keyType", options->keyType);
+
+    if (options->keyPaddingLeft != defaultOptions.keyPaddingLeft)
+        yyjson_mut_obj_add_uint(doc, obj, "keyPaddingLeft", options->keyPaddingLeft);
 
     {
         yyjson_mut_val* freq = yyjson_mut_obj(doc);

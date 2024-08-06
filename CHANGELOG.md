@@ -1,3 +1,79 @@
+# 2.21.0
+
+Changes:
+* We no longer use `libnm` for Wifi detection on Linux. Instead, we use `libdbus` to communicate with NetworkManager directly
+    * To package managers: libnm dependency should be removed
+
+Features:
+* Add module `BluetoothRadio` that prints bluetooth radios installed on the system
+    * Don't confuse with module `Bluetooth` which lists connected bluetooth devices
+* Detect more information when `--gpu-driver-specific` is used (GPU)
+* Detect which type of nvidia driver (open source or proprietary) is used (GPU, Linux)
+* `--gpu-driver-specific` adds supports for Moore Threads GPU (#1142, GPU, Linux / Windows)
+* Use SetupAPI for detecting GPUs to support GPU detection when running fastfetch as a Windows Service (GPU, Windows)
+    * See https://github.com/gpustack/gpustack/pull/97#issuecomment-2264699787 for detail
+* Detect playback status (Media, Linux)
+
+Bugfixes:
+* Don't try to connect display server in tty mode (Linux, #1110)
+* Improve ssh detection
+* Fix max frequency printing in custom format (CPU)
+* Fix displaying random characters when detecting kitty term font (#1136 / #1145, TerminalFont, Linux)
+* Make sure to detect all physical memory devices (#1137)
+* Don't detect `wl-restart` as WM (#1135, WM, Linux)
+* Use PCI bus ID to match Nvidia cards; fix multi-GPU detection (GPU)
+* Ignore invalid GPU (#1066, GPU, macOS)
+* Print error when invalid color code is found (#1138)
+* Fix invalid refresh rate detection on old macOS versions (Display, macOS)
+* Fix disk size detection on 32-bit systems (Disk, BSD)
+* Don't ignore disabled GPUs (#1140, GPU, Linux)
+* Fix GPU type detection on FreeBSD (GPU, FreeBSD)
+* Remove shell version detection for unknown shells (#1144, Shell)
+* Don't detect hyfetch as shell on NixOS (Shell, NixOS)
+
+Logos:
+* Update EndeavourOS_small
+* Add QTS
+
+# 2.20.0
+
+This release fixes regression of `2.19.0` on M1 MacBook Air. It also introduces a new option `--key-type icon` to display predefined icons in keys (requires newest nerd font). See `fastfetch -h key-type` for detail.
+
+Changes:
+* JSON option `display.keyWidth` has been renamed to `display.key.width`
+    * Previously: `{ "display": { "keyWidth": 3 } }`
+    * Now: `{ "display": { "key": { "width": 3 } } }`
+* Windows Terminal font detection **in WSL** has been removed due to [issue #1113](https://github.com/fastfetch-cli/fastfetch/issues/1113)
+
+Features:
+* Add option `display.key.type: <enum>` to print icons in keys
+    * Supported value `string`, `icon` and `both`. Default to `string` (don't display icons)
+    * Example: `{ "display": { "key": { "type": "icon" } } }`
+* Add option `display.key.paddingLeft: <num>` to print left padding (whitespaces) in keys
+    * Example: `{ "display": { "key": { "paddingLeft": 2 } } }`
+* Add option `modules.keyIcon` to set icon for specified module
+    * Example: `{ "modules": { "type": "command", "keyIcon": "🔑" } }`
+* Report system mono font name for Terminator if used (TerminalFont, Linux)
+* Don't require logo height to be set when using `--logo-position right`
+* Report Snapdragon SOC marketing name for newer Android phones (CPU, Android)
+* Detect MTK SOC part name (CPU, Android)
+
+Bugfixes:
+* Don't wake up suspended GPUs when using `--ds-force-drm` (Display, Linux)
+* Fix printing editor type in JSON result (Editor)
+* Fix `--logo-padding-*` not working correctly (#1121, Logo)
+* Fix possible segfault when detecting GPU frequency (#1121, macOS, GPU)
+
+# 2.19.1
+
+Bugfixes
+* Fix frequency value printing when using custom format (#1111, CPU / GPU)
+* Fix display detection for XiaoMi Android phone (Display, Android)
+
+Features:
+* Display if HDR mode is enabled for screens (Display)
+    * Supported in Windows and Linux (KDE) correctly
+
 # 2.19.0
 
 Changes:
@@ -6,25 +82,27 @@ Changes:
     * Now: `{ "display": { "freq": { "ndigits": 2 } } }`
     * This option now affects GPU frequency too
     * By default, frequencies are displayed in *GHz*. Set `display.freq.ndigits` to `-1` to display them in *MHz*
+* JSON option `display.binaryPrefix` has been moved to `display.size.binaryPrefix`
+    * Previously: `{ "display": { "binaryPrefix": "IEC" } }`
+    * Now: `{ "display": { "size": { "binaryPrefix": "IEC" } } }`
 
 Features:
 * Print physical diagonal length if supported (Display)
 * Detect display type in X11 mode (Display)
 * Assume displays connected via DisplayPort are external monitors (Display, Linux)
 * Support GPU frequency detection for Intel XE driver (GPU, Linux)
-* Report init system on Android (InitSystem, Android)
+* Detect init system on Android (InitSystem, Android)
 * Use background to display color blocks (Colors)
-    * To fix weird vertical black lines in some terminals (#1094)
-    * And match the behavior of neofetch
+    * To fix weird vertical black lines in some terminals and match the behavior of neofetch (#1094)
     * Can be reverted to old behavior with `--colors-symbol block`
 * Support Zed terminal version detection (Terminal)
 * Improve wezterm font detection (TerminalFont)
 * Add option `--separator-length`
 * Support GPU frequency detection for Apple Silicon (GPU, macOS)
 * Detect maximum refresh rate (#1101, Monitor)
-* Detect if HDR mode is enabled (Display)
+* Detect if HDR mode is supported and enabled (Windows, Display / Monitor)
 * Support physical monitor info detection for FreeBSD and SunOS (Monitor)
-* Support defining constant strings in JSON config file
+* Support defining constant strings in JSON config file, which can be used to dedupe formattion strings
 ```jsonc
 {
     "display": {
@@ -50,7 +128,11 @@ Bugfixes:
 * Fix some presets
 * Better detection for XTerm terminal fonts (#1095, TerminalFont, Linux)
 * Remove debug output (#1097, Windows)
-* Fix command line option `--gpu-hide-type` doesnt work (#1098, GPU)
+* Fix command line option `--gpu-hide-type` doesn't work (#1098, GPU)
+* Fix wrong date on Raspbian 10 (#1108, DateTime, Linux)
+* Use `brightness` instead of `actuall_brightness` when detecting current brightness level (Brightness, Linux)
+    * Ref: https://bugzilla.kernel.org/show_bug.cgi?id=203905
+* Fix buffer overflow with long font family names when detecting kitty term font (TerminalFont)
 * Fix some typos
 
 Logos:

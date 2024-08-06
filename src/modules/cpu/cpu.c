@@ -95,7 +95,7 @@ void ffPrintCPU(FFCPUOptions* options)
             FF_STRBUF_AUTO_DESTROY freqBase = ffStrbufCreate();
             ffParseFrequency(cpu.frequencyBase, &freqBase);
             FF_STRBUF_AUTO_DESTROY freqMax = ffStrbufCreate();
-            ffParseFrequency(cpu.frequencyBase, &freqBase);
+            ffParseFrequency(cpu.frequencyMax, &freqMax);
             FF_STRBUF_AUTO_DESTROY freqBioslimit = ffStrbufCreate();
             ffParseFrequency(cpu.frequencyBiosLimit, &freqBioslimit);
 
@@ -265,7 +265,7 @@ void ffInitCPUOptions(FFCPUOptions* options)
         ffPrintCPUHelpFormat,
         ffGenerateCPUJsonConfig
     );
-    ffOptionInitModuleArg(&options->moduleArgs);
+    ffOptionInitModuleArg(&options->moduleArgs, "");
     options->temp = false;
     options->tempConfig = (FFColorRangeConfig) { 60, 80 };
     options->showPeCoreCount = false;

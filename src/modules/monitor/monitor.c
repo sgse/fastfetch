@@ -41,9 +41,10 @@ void ffPrintMonitor(FFMonitorOptions* options)
         else
         {
             uint32_t moduleIndex = result.length == 1 ? 0 : index + 1;
-            FF_PARSE_FORMAT_STRING_CHECKED(&key, &options->moduleArgs.key, 2, ((FFformatarg[]){
+            FF_PARSE_FORMAT_STRING_CHECKED(&key, &options->moduleArgs.key, 3, ((FFformatarg[]){
                 {FF_FORMAT_ARG_TYPE_UINT, &moduleIndex, "index"},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &display->name, "name"},
+                {FF_FORMAT_ARG_TYPE_STRBUF, &options->moduleArgs.keyIcon, "icon"},
             }));
         }
 
@@ -53,7 +54,7 @@ void ffPrintMonitor(FFMonitorOptions* options)
 
             printf("%ux%u px", display->width, display->height);
             if (display->refreshRate > 0)
-                printf(" @ %.3f Hz", display->refreshRate);
+                printf(" @ %g Hz", ((int) (display->refreshRate * 1000 + 0.5)) / 1000.0);
             if (inch > 0)
                 printf(" - %ux%u mm (%.2f inches, %.2f ppi)\n", display->physicalWidth, display->physicalHeight, inch, ppi);
             else
@@ -212,7 +213,7 @@ void ffInitMonitorOptions(FFMonitorOptions* options)
         ffPrintMonitorHelpFormat,
         ffGenerateMonitorJsonConfig
     );
-    ffOptionInitModuleArg(&options->moduleArgs);
+    ffOptionInitModuleArg(&options->moduleArgs, "󰹑");
 }
 
 void ffDestroyMonitorOptions(FFMonitorOptions* options)

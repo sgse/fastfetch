@@ -126,6 +126,12 @@ Fastfetch uses JSON (with comments) for configuration. I suggest you use an IDE 
 
 Alternatively, you can refer to the presets in [`presets` directory](https://github.com/fastfetch-cli/fastfetch/tree/dev/presets).
 
+The **correct** way to edit the configuration:
+
+This is an example that [changes size prefix from MiB / GiB to MB / GB](https://github.com/fastfetch-cli/fastfetch/discussions/1014). Editor used: [helix](https://github.com/helix-editor/helix)
+
+[![asciicast](https://asciinema.org/a/1uF6sTPGKrHKI1MVaFcikINSQ.svg)](https://asciinema.org/a/1uF6sTPGKrHKI1MVaFcikINSQ)
+
 ### Q: I WANT THE DOCUMENTATION!
 
 [Here is the documentation](https://github.com/fastfetch-cli/fastfetch/wiki/Json-Schema). It is generated from [JSON schema](https://github.com/fastfetch-cli/fastfetch/blob/dev/doc/json_schema.json) but you won't like it.
@@ -171,7 +177,7 @@ You can always use `fastfetch --pipe false` to force fastfetch running in colorf
 
 ### Q: Why do fastfetch and neofetch show different memory usage result?
 
-See #1096
+See [#1096](https://github.com/fastfetch-cli/fastfetch/issues/1096).
 
 ### Q: I want feature A / B / C. Will fastfetch support it?
 
