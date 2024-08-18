@@ -74,7 +74,7 @@ static void detectAndroid(FFCPUResult* cpu)
 }
 #endif
 
-#ifdef __aarch64__
+#if __arm__ || __aarch64__
 #include "cpu_arm.h"
 
 static void detectArmName(FILE* cpuinfo, FFCPUResult* cpu, uint32_t implId)
@@ -82,44 +82,51 @@ static void detectArmName(FILE* cpuinfo, FFCPUResult* cpu, uint32_t implId)
     FF_AUTO_FREE char* line = NULL;
     rewind(cpuinfo);
     size_t len = 0;
-    const char* lastName = NULL;
+    uint32_t lastPartId = UINT32_MAX;
     uint32_t num = 0;
     while(getline(&line, &len, cpuinfo) != -1)
     {
         if (!ffStrStartsWith(line, "CPU part\t: ")) continue;
         uint32_t partId = (uint32_t) strtoul(line + strlen("CPU part\t: "), NULL, 16);
         const char* name = NULL;
-        switch (implId)
+        if (partId > 0) // Linux reports 0 for unknown CPUs
         {
-            case 0x41: name = armPartId2name(partId); break;
-            case 0x42: name = brcmPartId2name(partId); break;
-            case 0x43: name = caviumPartId2name(partId); break;
-            case 0x44: name = decPartId2name(partId); break;
-            case 0x46: name = fujitsuPartId2name(partId); break;
-            case 0x48: name = hisiPartId2name(partId); break;
-            case 0x4e: name = nvidiaPartId2name(partId); break;
-            case 0x50: name = apmPartId2name(partId); break;
-            case 0x51: name = qcomPartId2name(partId); break;
-            case 0x53: name = samsungPartId2name(partId); break;
-            case 0x56: name = marvellPartId2name(partId); break;
-            case 0x61: name = applePartId2name(partId); break;
-            case 0x66: name = faradayPartId2name(partId); break;
-            case 0x69: name = intelPartId2name(partId); break;
-            case 0x6d: name = msPartId2name(partId); break;
-            case 0x70: name = ftPartId2name(partId); break;
-            case 0xc0: name = amperePartId2name(partId); break;
-            default: name = "Unknown"; break;
+            switch (implId)
+            {
+                case 0x41: name = armPartId2name(partId); break;
+                case 0x42: name = brcmPartId2name(partId); break;
+                case 0x43: name = caviumPartId2name(partId); break;
+                case 0x44: name = decPartId2name(partId); break;
+                case 0x46: name = fujitsuPartId2name(partId); break;
+                case 0x48: name = hisiPartId2name(partId); break;
+                case 0x4e: name = nvidiaPartId2name(partId); break;
+                case 0x50: name = apmPartId2name(partId); break;
+                case 0x51: name = qcomPartId2name(partId); break;
+                case 0x53: name = samsungPartId2name(partId); break;
+                case 0x56: name = marvellPartId2name(partId); break;
+                case 0x61: name = applePartId2name(partId); break;
+                case 0x66: name = faradayPartId2name(partId); break;
+                case 0x69: name = intelPartId2name(partId); break;
+                case 0x6d: name = msPartId2name(partId); break;
+                case 0x70: name = ftPartId2name(partId); break;
+                case 0xc0: name = amperePartId2name(partId); break;
+            }
         }
-        if (lastName != name)
+        if (lastPartId != partId)
         {
-            if (lastName)
+            if (lastPartId != UINT32_MAX)
             {
                 if (num > 1)
                     ffStrbufAppendF(&cpu->name, "*%u", num);
                 ffStrbufAppendS(&cpu->name, " + ");
             }
-            ffStrbufAppendS(&cpu->name, name);
-            lastName = name;
+            if (name)
+                ffStrbufAppendS(&cpu->name, name);
+            else if (partId)
+                ffStrbufAppendF(&cpu->name, "%s-%X", cpu->vendor.chars, partId);
+            else
+                ffStrbufAppend(&cpu->name, &cpu->vendor);
+            lastPartId = partId;
             num = 1;
         }
         else
@@ -130,7 +137,7 @@ static void detectArmName(FILE* cpuinfo, FFCPUResult* cpu, uint32_t implId)
 }
 #endif
 
-static const char* parseCpuInfo(FILE* cpuinfo, FFCPUResult* cpu, FFstrbuf* physicalCoresBuffer, FFstrbuf* cpuMHz, FFstrbuf* cpuIsa, FFstrbuf* cpuUarch, FFstrbuf* cpuImplementer)
+static const char* parseCpuInfo(FILE* cpuinfo, FFCPUResult* cpu, FFstrbuf* physicalCoresBuffer, FFstrbuf* cpuMHz, FFstrbuf* cpuIsa, FFstrbuf* cpuUarch, FF_MAYBE_UNUSED FFstrbuf* cpuImplementer)
 {
     FF_AUTO_FREE char* line = NULL;
     size_t len = 0;
@@ -149,7 +156,7 @@ static const char* parseCpuInfo(FILE* cpuinfo, FFCPUResult* cpu, FFstrbuf* physi
             ffParsePropLine(line, "isa :", cpuIsa) ||
             ffParsePropLine(line, "uarch :", cpuUarch) ||
 
-            #if __aarch64__
+            #if __arm__ || __aarch64__
             (cpu->vendor.length == 0 && ffParsePropLine(line, "CPU implementer :", cpuImplementer)) ||
             #endif
             #if __ANDROID__
@@ -258,8 +265,8 @@ static double detectCPUTemp(void)
     {
         if(
             ffStrbufFirstIndexS(&value->name, "cpu") < value->name.length ||
-            ffStrbufCompS(&value->name, "k10temp") == 0 ||
-            ffStrbufCompS(&value->name, "coretemp") == 0
+            ffStrbufEqualS(&value->name, "k10temp") ||
+            ffStrbufEqualS(&value->name, "coretemp")
         ) return value->value;
     }
 
@@ -333,6 +340,8 @@ const char* ffDetectCPUImpl(const FFCPUOptions* options, FFCPUResult* cpu)
     cpu->coresOnline = (uint16_t) get_nprocs();
     cpu->coresPhysical = (uint16_t) ffStrbufToUInt(&physicalCoresBuffer, cpu->coresLogical);
 
+    // Ref https://github.com/fastfetch-cli/fastfetch/issues/1194#issuecomment-2295058252
+    ffCPUDetectSpeedByCpuid(cpu);
     if (!detectFrequency(cpu, options) || cpu->frequencyBase == 0)
         cpu->frequencyBase = (uint32_t) ffStrbufToUInt(&cpuMHz, 0);
 
@@ -351,20 +360,16 @@ const char* ffDetectCPUImpl(const FFCPUOptions* options, FFCPUResult* cpu)
         ffStrbufAppend(&cpu->name, &cpuIsa);
     }
 
-    #ifdef __aarch64__
+    #if __arm__ || __aarch64__
     uint32_t cpuImplementer = (uint32_t) strtoul(cpuImplementerStr.chars, NULL, 16);
     ffStrbufSetStatic(&cpu->vendor, hwImplId2Vendor(cpuImplementer));
-    #endif
 
-    #ifdef __ANDROID__
+    #if __ANDROID__
     detectAndroid(cpu);
-    #endif
-
-    #if defined(__linux__) && defined(__aarch64__) && !defined(__ANDROID__)
+    #elif __aarch64__
     detectAsahi(cpu);
     #endif
 
-    #ifdef __aarch64__
     if (cpu->name.length == 0)
         detectArmName(cpuinfo, cpu, cpuImplementer);
     #endif
