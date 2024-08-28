@@ -8,7 +8,7 @@
 #include "detection/displayserver/displayserver.h"
 #include "util/mallocHelper.h"
 #include "util/stringUtils.h"
-#include "util/linux/elf.h"
+#include "util/binary.h"
 
 static const char* getSystemMonospaceFont(void)
 {
@@ -287,10 +287,10 @@ static void detectXterm(FFTerminalFontResult* terminalFont)
     ffFontInitValues(&terminalFont->font, fontName.chars, fontSize.chars);
 }
 
-static bool elfExtractStringsCallBack(const char* str, uint32_t len, void* userData)
+static bool extractStTermFont(const char* str, FF_MAYBE_UNUSED uint32_t len, void* userdata)
 {
     if (!ffStrContains(str, "size=")) return true;
-    ffStrbufSetNS((FFstrbuf*) userData, len, str);
+    ffStrbufSetNS((FFstrbuf*) userdata, len, str);
     return false;
 }
 
@@ -315,7 +315,7 @@ static void detectSt(FFTerminalFontResult* terminalFont, const FFTerminalResult*
     {
         ffStrbufClear(&font);
 
-        const char* error = ffElfExtractStrings(terminal->exePath.chars, elfExtractStringsCallBack, &font);
+        const char* error = ffBinaryExtractStrings(terminal->exePath.chars, extractStTermFont, &font, (uint32_t) strlen("size=0"));
         if (error)
         {
             ffStrbufAppendS(&terminalFont->error, error);

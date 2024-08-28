@@ -5,6 +5,7 @@
 #include "util/mallocHelper.h"
 #include "util/windows/registry.h"
 #include "util/windows/unicode.h"
+#include "util/stringUtils.h"
 
 #include <windows.h>
 #include <wchar.h>
@@ -37,7 +38,7 @@ static bool getProductVersion(const wchar_t* filePath, FFstrbuf* version)
     return false;
 }
 
-bool fftsGetShellVersion(FFstrbuf* exe, const char* exeName, FFstrbuf* version);
+bool fftsGetShellVersion(FFstrbuf* exe, const char* exeName, const FFstrbuf* exePath, FFstrbuf* version);
 
 static uint32_t getShellInfo(FFShellResult* result, uint32_t pid)
 {
@@ -345,6 +346,10 @@ const FFShellResult* ffDetectShell(void)
     if(!ffProcessGetInfoWindows(0, &ppid, NULL, NULL, NULL, NULL, NULL))
         return &result;
 
+    const char* ignoreParent = getenv("FFTS_IGNORE_PARENT");
+    if (ignoreParent && ffStrEquals(ignoreParent, "1"))
+        ffProcessGetInfoWindows(ppid, &ppid, NULL, NULL, NULL, NULL, NULL);
+
     ppid = getShellInfo(&result, ppid);
 
     if (result.processName.length > 0)
@@ -354,7 +359,7 @@ const FFShellResult* ffDetectShell(void)
         strcpy(tmp, result.exeName);
         char* ext = strrchr(tmp, '.');
         if (ext) *ext = '\0';
-        fftsGetShellVersion(&result.exe, tmp, &result.version);
+        fftsGetShellVersion(&result.exe, tmp, &result.exePath, &result.version);
     }
 
     return &result;
