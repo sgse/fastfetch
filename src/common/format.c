@@ -8,39 +8,53 @@
 
 void ffFormatAppendFormatArg(FFstrbuf* buffer, const FFformatarg* formatarg)
 {
-    if(formatarg->type == FF_FORMAT_ARG_TYPE_INT)
-        ffStrbufAppendF(buffer, "%i", *(int*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_UINT)
-        ffStrbufAppendF(buffer, "%" PRIu32, *(uint32_t*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_UINT64)
-        ffStrbufAppendF(buffer, "%" PRIu64, *(uint64_t*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_UINT16)
-        ffStrbufAppendF(buffer, "%" PRIu16, *(uint16_t*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_UINT8)
-        ffStrbufAppendF(buffer, "%" PRIu8, *(uint8_t*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_STRING)
-        ffStrbufAppendS(buffer, (const char*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_STRBUF)
-        ffStrbufAppend(buffer, (FFstrbuf*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_FLOAT)
-        ffStrbufAppendF(buffer, "%f", *(float*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_DOUBLE)
-        ffStrbufAppendF(buffer, "%g", *(double*)formatarg->value);
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_BOOL)
-        ffStrbufAppendS(buffer, *(bool*)formatarg->value ? "true" : "false");
-    else if(formatarg->type == FF_FORMAT_ARG_TYPE_LIST)
+    switch(formatarg->type)
     {
-        const FFlist* list = formatarg->value;
-        for(uint32_t i = 0; i < list->length; i++)
+        case FF_FORMAT_ARG_TYPE_INT:
+            ffStrbufAppendF(buffer, "%" PRIi32, *(int32_t*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_UINT:
+            ffStrbufAppendF(buffer, "%" PRIu32, *(uint32_t*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_UINT64:
+            ffStrbufAppendF(buffer, "%" PRIu64, *(uint64_t*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_UINT16:
+            ffStrbufAppendF(buffer, "%" PRIu16, *(uint16_t*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_UINT8:
+            ffStrbufAppendF(buffer, "%" PRIu8, *(uint8_t*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_STRING:
+            ffStrbufAppendS(buffer, (const char*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_STRBUF:
+            ffStrbufAppend(buffer, (FFstrbuf*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_FLOAT:
+            ffStrbufAppendF(buffer, "%f", *(float*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_DOUBLE:
+            ffStrbufAppendF(buffer, "%g", *(double*)formatarg->value);
+            break;
+        case FF_FORMAT_ARG_TYPE_BOOL:
+            ffStrbufAppendS(buffer, *(bool*)formatarg->value ? "true" : "false");
+            break;
+        case FF_FORMAT_ARG_TYPE_LIST:
         {
-            ffStrbufAppend(buffer, ffListGet(list, i));
-            if(i < list->length - 1)
-                ffStrbufAppendS(buffer, ", ");
+            const FFlist* list = formatarg->value;
+            for(uint32_t i = 0; i < list->length; i++)
+            {
+                ffStrbufAppend(buffer, ffListGet(list, i));
+                if(i < list->length - 1)
+                    ffStrbufAppendS(buffer, ", ");
+            }
+            break;
         }
-    }
-    else if(formatarg->type != FF_FORMAT_ARG_TYPE_NULL)
-    {
-        fprintf(stderr, "Error: format string \"%s\": argument is not implemented: %i\n", buffer->chars, formatarg->type);
+        default:
+            if(formatarg->type != FF_FORMAT_ARG_TYPE_NULL)
+                fprintf(stderr, "Error: format string \"%s\": argument is not implemented: %i\n", buffer->chars, formatarg->type);
+            break;
     }
 }
 
@@ -100,7 +114,8 @@ static inline bool formatArgSet(const FFformatarg* arg)
         (arg->type == FF_FORMAT_ARG_TYPE_UINT8 && *(uint8_t*)arg->value > 0) ||
         (arg->type == FF_FORMAT_ARG_TYPE_UINT16 && *(uint16_t*)arg->value > 0) ||
         (arg->type == FF_FORMAT_ARG_TYPE_UINT && *(uint32_t*)arg->value > 0) ||
-        (arg->type == FF_FORMAT_ARG_TYPE_BOOL && arg->value != NULL)
+        (arg->type == FF_FORMAT_ARG_TYPE_BOOL && *(bool*)arg->value) ||
+        (arg->type == FF_FORMAT_ARG_TYPE_LIST && ((FFlist*)arg->value)->length > 0)
     );
 }
 
@@ -265,18 +280,34 @@ void ffParseFormatString(FFstrbuf* buffer, const FFstrbuf* formatstr, uint32_t n
             continue;
         }
 
-        int32_t truncLength = INT32_MAX;
-        char* pColon = memchr(placeholderValue.chars, ':', placeholderValue.length);
-        if (pColon != NULL)
+        int32_t truncLength = 0;
+        char align = '\0';
+        char* pSep = memchr(placeholderValue.chars, ':', placeholderValue.length);
+        if (pSep)
+            align = ':';
+        else
+        {
+            pSep = memchr(placeholderValue.chars, '<', placeholderValue.length);
+            if (pSep)
+                align = '<';
+            else
+            {
+                pSep = memchr(placeholderValue.chars, '>', placeholderValue.length);
+                if (pSep)
+                    align = '>';
+            }
+        }
+
+        if (pSep)
         {
             char* pEnd = NULL;
-            truncLength = (int32_t) strtol(pColon + 1, &pEnd, 10);
+            truncLength = (int32_t) strtol(pSep + 1, &pEnd, 10);
             if (*pEnd != '\0')
             {
                 appendInvalidPlaceholder(buffer, "{", &placeholderValue, i, formatstr->length);
                 continue;
             }
-            *pColon = '\0';
+            *pSep = '\0';
         }
 
         uint32_t index = getArgumentIndex(placeholderValue.chars, numArgs, arguments);
@@ -287,7 +318,7 @@ void ffParseFormatString(FFstrbuf* buffer, const FFstrbuf* formatstr, uint32_t n
 
         if (index > numArgs)
         {
-            if (pColon) *pColon = ':';
+            if (pSep) *pSep = align;
             appendInvalidPlaceholder(buffer, "{", &placeholderValue, i, formatstr->length);
             continue;
         }
@@ -299,14 +330,43 @@ void ffParseFormatString(FFstrbuf* buffer, const FFstrbuf* formatstr, uint32_t n
             truncLength = -truncLength;
         }
 
-        uint32_t oldLength = buffer->length;
-        ffFormatAppendFormatArg(buffer, &arguments[index - 1]);
-        if (buffer->length - oldLength > (uint32_t) truncLength)
+        if (!align)
+            ffFormatAppendFormatArg(buffer, &arguments[index - 1]);
+        else
         {
-            ffStrbufSubstrBefore(buffer, oldLength + (uint32_t) truncLength);
-            ffStrbufTrimRightSpace(buffer);
-            if (ellipsis)
-                ffStrbufAppendS(buffer, "…");
+            ffStrbufClear(&placeholderValue);
+            ffFormatAppendFormatArg(&placeholderValue, &arguments[index - 1]);
+            if (placeholderValue.length == (uint32_t) truncLength)
+                ffStrbufAppend(buffer, &placeholderValue);
+            else if (placeholderValue.length > (uint32_t) truncLength)
+            {
+                if (align == ':')
+                {
+                    ffStrbufSubstrBefore(&placeholderValue, (uint32_t) truncLength);
+                    ffStrbufTrimRightSpace(&placeholderValue);
+                }
+                else
+                    ffStrbufSubstrBefore(&placeholderValue, (uint32_t) (!ellipsis? truncLength : truncLength - 1));
+                ffStrbufAppend(buffer, &placeholderValue);
+
+                if (ellipsis)
+                    ffStrbufAppendS(buffer, "…");
+            }
+            else if (align == ':')
+                ffStrbufAppend(buffer, &placeholderValue);
+            else
+            {
+                if (align == '<')
+                {
+                    ffStrbufAppend(buffer, &placeholderValue);
+                    ffStrbufAppendNC(buffer, (uint32_t) truncLength - placeholderValue.length, ' ');
+                }
+                else
+                {
+                    ffStrbufAppendNC(buffer, (uint32_t) truncLength - placeholderValue.length, ' ');
+                    ffStrbufAppend(buffer, &placeholderValue);
+                }
+            }
         }
     }
 

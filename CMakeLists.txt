@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.22.0
+    VERSION 2.23.0
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -71,6 +71,7 @@ cmake_dependent_option(ENABLE_DDCUTIL "Enable ddcutil" ON "LINUX" OFF)
 cmake_dependent_option(ENABLE_DIRECTX_HEADERS "Enable DirectX headers for WSL" ON "LINUX" OFF)
 cmake_dependent_option(ENABLE_ELF "Enable libelf" ON "LINUX OR FreeBSD OR ANDROID" OFF)
 cmake_dependent_option(ENABLE_THREADS "Enable multithreading" ON "Threads_FOUND" OFF)
+cmake_dependent_option(ENABLE_LIBZFS "Enable libzfs" ON "LINUX OR FreeBSD OR SunOS" OFF)
 
 option(ENABLE_SYSTEM_YYJSON "Use system provided (instead of fastfetch embedded) yyjson library" OFF)
 option(ENABLE_ASAN "Build fastfetch with ASAN (address sanitizer)" OFF)
@@ -397,7 +398,6 @@ set(LIBFASTFETCH_SRC
     src/options/modules.c
     src/options/logo.c
     src/options/general.c
-    src/options/library.c
     src/util/edidHelper.c
     src/util/base64.c
     src/util/FFlist.c
@@ -1098,6 +1098,25 @@ ff_lib_enable(DIRECTX_HEADERS
     "DirectX-Headers"
     "DirectX-Headers"
 )
+# The system <libzfs.h> is only usable on SunOS. We provide our local copy of it so it's always available.
+if(ENABLE_LIBZFS)
+    if(BINARY_LINK_TYPE STREQUAL "dlopen")
+        target_compile_definitions(libfastfetch PRIVATE FF_HAVE_LIBZFS=1)
+    else()
+        set(CMAKE_REQUIRED_LIBRARIES_BACKUP ${CMAKE_REQUIRED_LIBRARIES})
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} zfs)
+        check_function_exists("libzfs_init" LIBZFS_FOUND)
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_BACKUP})
+        if(NOT LIBZFS_FOUND)
+            message(STATUS "Library: missing: LIBZFS")
+        else()
+            message(STATUS "Library: found LIBZFS")
+            target_compile_definitions(libfastfetch PRIVATE FF_HAVE_LIBZFS=1)
+            target_link_libraries(libfastfetch PRIVATE zfs)
+        endif()
+    endif()
+endif()
+
 
 if(ENABLE_THREADS)
     target_compile_definitions(libfastfetch PRIVATE FF_HAVE_THREADS)
@@ -1160,6 +1179,8 @@ elseif(SunOS)
         PRIVATE "socket"
         PRIVATE "kstat"
         PRIVATE "proc"
+        PRIVATE "zfs"
+        PRIVATE "nvpair"
     )
 elseif(ANDROID)
     CHECK_LIBRARY_EXISTS(-l:libandroid-wordexp.a wordexp "" HAVE_LIBANDROID_WORDEXP_STATIC)
@@ -1202,6 +1223,9 @@ if(WIN32)
         )
     endif()
     set(CMAKE_CXX_STANDARD 17)
+endif()
+if(FreeBSD)
+  set(CMAKE_REQUIRED_INCLUDES "/usr/local/include" "/usr/include")
 endif()
 if(LINUX OR FreeBSD)
     CHECK_INCLUDE_FILE("linux/videodev2.h" HAVE_LINUX_VIDEODEV2)
@@ -1317,9 +1341,20 @@ if (BUILD_TESTS)
         PRIVATE libfastfetch
     )
 
+    add_executable(fastfetch-test-format
+        tests/format.c
+    )
+    target_link_libraries(fastfetch-test-format
+        PRIVATE libfastfetch
+    )
+    if(yyjson_FOUND)
+        target_compile_definitions(fastfetch-test-format PRIVATE FF_USE_SYSTEM_YYJSON)
+    endif()
+
     enable_testing()
     add_test(NAME test-strbuf COMMAND fastfetch-test-strbuf)
     add_test(NAME test-list COMMAND fastfetch-test-list)
+    add_test(NAME test-format COMMAND fastfetch-test-format)
 endif()
 
 ##################

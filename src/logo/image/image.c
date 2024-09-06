@@ -3,6 +3,7 @@
 #include "common/printing.h"
 #include "util/stringUtils.h"
 #include "util/base64.h"
+#include "detection/terminalsize/terminalsize.h"
 
 #include <limits.h>
 #include <math.h>
@@ -83,6 +84,8 @@ static bool printImageIterm(bool printError)
                 fprintf(stderr, "\nLogo (iterm): fail to query cursor position: %s\n", error);
                 return true; // We already printed image logo, don't print ascii logo then
             }
+            if (X < options->paddingLeft + options->width)
+                X = (uint16_t) (options->paddingLeft + options->width);
             if (options->position == FF_LOGO_POSITION_LEFT)
                 instance.state.logoWidth = X + options->paddingRight - 1;
             instance.state.logoHeight = Y;
@@ -207,6 +210,8 @@ static bool printImageKittyDirect(bool printError)
                     fprintf(stderr, "\nLogo (kitty-direct): fail to query cursor position: %s\n", error);
                 return true; // We already printed image logo, don't print ascii logo then
             }
+            if (X < options->paddingLeft + options->width)
+                X = (uint16_t) (options->paddingLeft + options->width);
             if (options->position == FF_LOGO_POSITION_LEFT)
                 instance.state.logoWidth = X + options->paddingRight - 1;
             instance.state.logoHeight = Y;
@@ -300,7 +305,7 @@ static inline char* realpath(const char* restrict file_name, char* restrict reso
 
 static bool compressBlob(void** blob, size_t* length)
 {
-    FF_LIBRARY_LOAD(zlib, &instance.config.library.libZ, false, "libz" FF_LIBRARY_EXTENSION, 2)
+    FF_LIBRARY_LOAD(zlib, false, "libz" FF_LIBRARY_EXTENSION, 2)
     FF_LIBRARY_LOAD_SYMBOL(zlib, compressBound, false)
     FF_LIBRARY_LOAD_SYMBOL(zlib, compress2, false)
 
@@ -485,7 +490,7 @@ static bool printImageKitty(FFLogoRequestData* requestData, const ImageData* ima
 #include <chafa.h>
 static bool printImageChafa(FFLogoRequestData* requestData, const ImageData* imageData)
 {
-    FF_LIBRARY_LOAD(chafa, &instance.config.library.libChafa, false,
+    FF_LIBRARY_LOAD(chafa, false,
         "libchafa" FF_LIBRARY_EXTENSION, 1,
         "libchafa-0" FF_LIBRARY_EXTENSION, -1 // Required for Windows
     )
@@ -831,37 +836,24 @@ static bool printCached(FFLogoRequestData* requestData)
 
 static bool getCharacterPixelDimensions(FFLogoRequestData* requestData)
 {
-    #ifndef _WIN32
-
-    struct winsize winsize;
-
-    //Initialize every member to 0, because it isn't guaranteed that every terminal sets them all
-    memset(&winsize, 0, sizeof(struct winsize));
-
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &winsize);
-
-    if(winsize.ws_row == 0 || winsize.ws_col == 0)
-        ffGetTerminalResponse("\033[18t", "\033[8;%hu;%hut", &winsize.ws_row, &winsize.ws_col);
-
-    if(winsize.ws_row == 0 || winsize.ws_col == 0)
-        return false;
-
-    if(winsize.ws_ypixel == 0 || winsize.ws_xpixel == 0)
-        ffGetTerminalResponse("\033[14t", "\033[4;%hu;%hut", &winsize.ws_ypixel, &winsize.ws_xpixel);
-
-    requestData->characterPixelWidth = winsize.ws_xpixel / (double) winsize.ws_col;
-    requestData->characterPixelHeight = winsize.ws_ypixel / (double) winsize.ws_row;
-
-    #else
+    #ifdef _WIN32
 
     CONSOLE_FONT_INFO cfi;
-    if(GetCurrentConsoleFont(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &cfi) == FALSE) // Only works for ConHost
-        return false;
-
-    requestData->characterPixelWidth = cfi.dwFontSize.X;
-    requestData->characterPixelHeight = cfi.dwFontSize.Y;
-
+    if(GetCurrentConsoleFont(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &cfi)) // Only works for ConHost
+    {
+        requestData->characterPixelWidth = cfi.dwFontSize.X;
+        requestData->characterPixelHeight = cfi.dwFontSize.Y;
+    }
+    if (requestData->characterPixelWidth > 1.0 && requestData->characterPixelHeight > 1.0)
+        return true;
     #endif
+
+    FFTerminalSizeResult termSize = {};
+    if (ffDetectTerminalSize(&termSize))
+    {
+        requestData->characterPixelWidth = termSize.width / (double) termSize.columns;
+        requestData->characterPixelHeight = termSize.height / (double) termSize.rows;
+    }
 
     return requestData->characterPixelWidth > 1.0 && requestData->characterPixelHeight > 1.0;
 }

@@ -43,7 +43,6 @@ static void defaultConfig(void)
     ffOptionsInitGeneral(&instance.config.general);
     ffOptionsInitModules(&instance.config.modules);
     ffOptionsInitDisplay(&instance.config.display);
-    ffOptionsInitLibrary(&instance.config.library);
 }
 
 void ffInitInstance(void)
@@ -148,7 +147,6 @@ static void destroyConfig(void)
     ffOptionsDestroyGeneral(&instance.config.general);
     ffOptionsDestroyModules(&instance.config.modules);
     ffOptionsDestroyDisplay(&instance.config.display);
-    ffOptionsDestroyLibrary(&instance.config.library);
 }
 
 static void destroyState(void)
@@ -246,6 +244,9 @@ void ffListFeatures(void)
         #endif
         #if FF_HAVE_ELF
             "libelf\n"
+        #endif
+        #if FF_HAVE_LIBZFS
+            "libzfs\n"
         #endif
         #if FF_HAVE_DIRECTX_HEADERS
             "Directx Headers\n"

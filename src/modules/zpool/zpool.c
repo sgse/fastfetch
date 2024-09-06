@@ -5,7 +5,7 @@
 #include "modules/zpool/zpool.h"
 #include "util/stringUtils.h"
 
-#define FF_ZPOOL_NUM_FORMAT_ARGS 9
+#define FF_ZPOOL_NUM_FORMAT_ARGS 8
 
 static void printZpool(FFZpoolOptions* options, FFZpoolResult* result, uint8_t index)
 {
@@ -20,9 +20,10 @@ static void printZpool(FFZpoolOptions* options, FFZpoolResult* result, uint8_t i
     else
     {
         ffStrbufClear(&buffer);
-        FF_PARSE_FORMAT_STRING_CHECKED(&buffer, &options->moduleArgs.key, 2, ((FFformatarg[]){
-            {FF_FORMAT_ARG_TYPE_UINT8, &index, "index"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &result->name, "name"},
+        FF_PARSE_FORMAT_STRING_CHECKED(&buffer, &options->moduleArgs.key, 3, ((FFformatarg[]){
+            FF_FORMAT_ARG(index, "index"),
+            FF_FORMAT_ARG(result->name, "name"),
+            FF_FORMAT_ARG(options->moduleArgs.keyIcon, "icon"),
         }));
     }
 
@@ -44,7 +45,7 @@ static void printZpool(FFZpoolOptions* options, FFZpoolResult* result, uint8_t i
         ffPercentAppendNum(&buffer, bytesPercentage, options->percent, false, &options->moduleArgs);
         ffStrbufAppendS(&buffer, ", ");
         ffPercentAppendNum(&buffer, fragPercentage, options->percent, false, &options->moduleArgs);
-        ffStrbufAppendF(&buffer, " frag) - %s", result->status.chars);
+        ffStrbufAppendF(&buffer, " frag) - %s", result->state.chars);
         ffStrbufPutTo(&buffer, stdout);
     }
     else
@@ -60,15 +61,14 @@ static void printZpool(FFZpoolOptions* options, FFZpoolResult* result, uint8_t i
         ffPercentAppendBar(&fragPercentageBar, fragPercentage, options->percent, &options->moduleArgs);
 
         FF_PRINT_FORMAT_CHECKED(buffer.chars, 0, &options->moduleArgs, FF_PRINT_TYPE_NO_CUSTOM_KEY, FF_ZPOOL_NUM_FORMAT_ARGS, ((FFformatarg[]) {
-            {FF_FORMAT_ARG_TYPE_STRBUF, &result->name, "name"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &result->state, "state"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &result->status, "status"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &usedPretty, "size-used"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &totalPretty, "size-total"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &bytesPercentageNum, "size-percentage"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &fragPercentage, "frag-percentage"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &bytesPercentageBar, "size-percentage-bar"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &fragPercentageBar, "frag-percentage-bar"},
+            FF_FORMAT_ARG(result->name, "name"),
+            FF_FORMAT_ARG(result->state, "state"),
+            FF_FORMAT_ARG(usedPretty, "size-used"),
+            FF_FORMAT_ARG(totalPretty, "size-total"),
+            FF_FORMAT_ARG(bytesPercentageNum, "size-percentage"),
+            FF_FORMAT_ARG(fragPercentage, "frag-percentage"),
+            FF_FORMAT_ARG(bytesPercentageBar, "size-percentage-bar"),
+            FF_FORMAT_ARG(fragPercentageBar, "frag-percentage-bar"),
         }));
     }
 }
@@ -165,7 +165,6 @@ void ffGenerateZpoolJsonResult(FF_MAYBE_UNUSED FFZpoolOptions* options, yyjson_m
         yyjson_mut_val* obj = yyjson_mut_arr_add_obj(doc, arr);
         yyjson_mut_obj_add_strbuf(doc, obj, "name", &zpool->name);
         yyjson_mut_obj_add_strbuf(doc, obj, "state", &zpool->state);
-        yyjson_mut_obj_add_strbuf(doc, obj, "status", &zpool->status);
         yyjson_mut_obj_add_uint(doc, obj, "used", zpool->used);
         yyjson_mut_obj_add_uint(doc, obj, "total", zpool->total);
         yyjson_mut_obj_add_uint(doc, obj, "version", zpool->version);
@@ -184,7 +183,6 @@ void ffPrintZpoolHelpFormat(void)
     FF_PRINT_MODULE_FORMAT_HELP_CHECKED(FF_ZPOOL_MODULE_NAME, "{3} / {4} ({5}, {6} frag)", FF_ZPOOL_NUM_FORMAT_ARGS, ((const char* []) {
         "Zpool name - name",
         "Zpool state - state",
-        "Zpool health status - status",
         "Size used - size-used",
         "Size total - size-total",
         "Size percentage num - size-percentage",
@@ -199,7 +197,7 @@ void ffInitZpoolOptions(FFZpoolOptions* options)
     ffOptionInitModuleBaseInfo(
         &options->moduleInfo,
         FF_ZPOOL_MODULE_NAME,
-        "Print zfs pools",
+        "Print ZFS storage pools",
         ffParseZpoolCommandOptions,
         ffParseZpoolJsonObject,
         ffPrintZpool,
