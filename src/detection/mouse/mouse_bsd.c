@@ -1,4 +1,4 @@
-#include "gamepad.h"
+#include "mouse.h"
 #include "common/io/io.h"
 
 #include <stdio.h>
@@ -8,7 +8,7 @@
 
 #define MAX_UHID_JOYS 64
 
-const char* ffDetectGamepad(FFlist* devices /* List of FFGamepadDevice */)
+const char* ffDetectMouse(FFlist* devices /* List of FFMouseDevice */)
 {
     char path[16];
     for (int i = 0; i < MAX_UHID_JOYS; i++)
@@ -28,24 +28,14 @@ const char* ffDetectGamepad(FFlist* devices /* List of FFGamepadDevice */)
             struct hid_item hItem;
             while (hid_get_item(hData, &hItem) > 0)
             {
-                if (HID_PAGE(hItem.usage) != 1) continue;
-                switch (HID_USAGE(hItem.usage))
-                {
-                    case 1: // Pointer. FreeBSD returns 1 for my Pro Controller for some reason
-                    case 4: // Joystick
-                    case 5: // Gamepad
-                        break;
-                    default:
-                        continue;
-                }
+                if (HID_PAGE(hItem.usage) != 1 || HID_USAGE(hItem.usage) != 2) continue;
 
                 struct usb_device_info di;
                 if (ioctl(fd, USB_GET_DEVICEINFO, &di) != -1)
                 {
-                    FFGamepadDevice* device = (FFGamepadDevice*) ffListAdd(devices);
+                    FFMouseDevice* device = (FFMouseDevice*) ffListAdd(devices);
                     ffStrbufInitS(&device->serial, di.udi_serial);
-                    ffStrbufInitF(&device->name, "%s %s", di.udi_vendor, di.udi_product);
-                    device->battery = 0;
+                    ffStrbufInitS(&device->name, di.udi_product);
                 }
             }
         }
