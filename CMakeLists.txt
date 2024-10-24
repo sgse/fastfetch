@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.27.1
+    VERSION 2.28.0
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -1043,11 +1043,11 @@ if(FreeBSD AND EXISTS "/usr/local/bin/objdump")
 endif()
 
 if(LINUX)
-    target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE _XOPEN_SOURCE _ATFILE_SOURCE __STDC_WANT_LIB_EXT1__ _FILE_OFFSET_BITS=64) # "$<$<CONFIG:Release>:_FORTIFY_SOURCE=3>"
+    target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE _XOPEN_SOURCE _ATFILE_SOURCE __STDC_WANT_LIB_EXT1__ _FILE_OFFSET_BITS=64 _TIME_BITS=64) # "$<$<CONFIG:Release>:_FORTIFY_SOURCE=3>"
 elseif(ANDROID)
     target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE _XOPEN_SOURCE _FILE_OFFSET_BITS=64 "$<$<CONFIG:DEBUG>:__BIONIC_FORTIFY>" "$<$<CONFIG:DEBUG>:__BIONIC_FORTIFY_RUNTIME_CHECKS_ENABLED>")
 elseif(WIN32)
-    target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE WIN32_LEAN_AND_MEAN=1 _WIN32_WINNT=0x0A00) # "$<$<CONFIG:Release>:_FORTIFY_SOURCE=3>"
+    target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE WIN32_LEAN_AND_MEAN=1 _WIN32_WINNT=0x0A00 NOMINMAX) # "$<$<CONFIG:Release>:_FORTIFY_SOURCE=3>"
 elseif(APPLE)
     target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE _XOPEN_SOURCE __STDC_WANT_LIB_EXT1__ _FILE_OFFSET_BITS=64 _DARWIN_C_SOURCE)
 elseif(OpenBSD)
