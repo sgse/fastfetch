@@ -3206,8 +3206,19 @@ static const FFlogo O[] = {
     },
     // OpenSuseTumbleweed
     {
-        .names = {"opensuse_tumbleweed", "open_suse_tumbleweed", "opensuse-tumbleweed", "open-suse-tumbleweed", "suse_tumbleweed", "suse-tumbleweed", "opensusetumbleweed"},
+        .names = {"opensuse-tumbleweed", "opensuse_tumbleweed"},
         .lines = FASTFETCH_DATATEXT_LOGO_OPENSUSE_TUMBLEWEED,
+        .colors = {
+            FF_COLOR_FG_WHITE,
+        },
+        .colorKeys = FF_COLOR_FG_GREEN,
+        .colorTitle = FF_COLOR_FG_GREEN,
+    },
+    // OpenSuseTumbleweedOld
+    {
+        .names = {"opensuse-tumbleweed-old", "opensuse_tumbleweed-old"},
+        .lines = FASTFETCH_DATATEXT_LOGO_OPENSUSE_TUMBLEWEED_OLD,
+        .type = FF_LOGO_LINE_TYPE_ALTER_BIT,
         .colors = {
             FF_COLOR_FG_WHITE,
         },
@@ -4251,6 +4262,16 @@ static const FFlogo S[] = {
             FF_COLOR_FG_WHITE,
         },
     },
+    // SummitOS
+    {
+        .names = {"SummitOS"},
+        .lines = FASTFETCH_DATATEXT_LOGO_SUMMITOS,
+        .colors = {
+            FF_COLOR_FG_RGB "143;191;80",
+            FF_COLOR_FG_RGB "160;205;102",
+            FF_COLOR_FG_RGB "181;225;102",
+        },
+    },
     // Suse
     {
         .names = {"suse", "suse-linux"},
@@ -4808,6 +4829,19 @@ static const FFlogo X[] = {
             FF_COLOR_FG_YELLOW,
             FF_COLOR_FG_GREEN,
             FF_COLOR_FG_RED,
+        }
+    },
+    // XCP-ng
+    {
+        .names = {"XCP-ng", "xenenterprise"},
+        .lines = FASTFETCH_DATATEXT_LOGO_XCP_NG,
+        .colors = {
+            FF_COLOR_FG_RED,
+            FF_COLOR_FG_RED,
+            FF_COLOR_FG_BLACK,
+            FF_COLOR_FG_BLACK,
+            FF_COLOR_FG_BLUE,
+            FF_COLOR_FG_YELLOW,
         }
     },
     // Xferience

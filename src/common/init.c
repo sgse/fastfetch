@@ -245,7 +245,7 @@ void ffListFeatures(void)
         #if FF_HAVE_DDCUTIL
             "libddcutil\n"
         #endif
-        #if FF_HAVE_ELF || __sun || __FreeBSD__ || __OpenBSD__
+        #if FF_HAVE_ELF || __sun || __FreeBSD__ || __OpenBSD__ || __NetBSD__
             "libelf\n"
         #endif
         #if FF_HAVE_LIBZFS
@@ -265,6 +265,9 @@ void ffListFeatures(void)
         #endif
         #if FF_HAVE_EMBEDDED_PCIIDS
             "Embedded pciids\n"
+        #endif
+        #if FF_USE_STBPRINTF
+            "stb_printf\n"
         #endif
         ""
     , stdout);
