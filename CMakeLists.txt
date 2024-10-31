@@ -77,11 +77,11 @@ cmake_dependent_option(ENABLE_DIRECTX_HEADERS "Enable DirectX headers for WSL" O
 cmake_dependent_option(ENABLE_ELF "Enable libelf" ON "LINUX OR ANDROID" OFF)
 cmake_dependent_option(ENABLE_THREADS "Enable multithreading" ON "Threads_FOUND" OFF)
 cmake_dependent_option(ENABLE_LIBZFS "Enable libzfs" ON "LINUX OR FreeBSD OR SunOS" OFF)
+cmake_dependent_option(ENABLE_PCIACCESS "Enable libpciaccess" ON "NetBSD OR OpenBSD OR SunOS" OFF)
 
 option(ENABLE_SYSTEM_YYJSON "Use system provided (instead of fastfetch embedded) yyjson library" OFF)
 option(ENABLE_ASAN "Build fastfetch with ASAN (address sanitizer)" OFF)
 option(ENABLE_LTO "Enable link-time optimization in release mode if supported" ON)
-option(ENABLE_STBPRINTF "Enable stb_printf" OFF)
 option(BUILD_TESTS "Build tests" OFF) # Also create test executables
 option(SET_TWEAK "Add tweak to project version" ON) # This is set to off by github actions for release builds
 option(IS_MUSL "Build with musl libc" OFF) # Used by Github Actions
@@ -683,7 +683,7 @@ elseif(NetBSD)
         src/detection/brightness/brightness_bsd.c
         src/detection/btrfs/btrfs_nosupport.c
         src/detection/chassis/chassis_nbsd.c
-        src/detection/cpu/cpu_bsd.c
+        src/detection/cpu/cpu_nbsd.c
         src/detection/cpucache/cpucache_nosupport.c
         src/detection/cpuusage/cpuusage_bsd.c
         src/detection/cursor/cursor_linux.c
@@ -706,7 +706,7 @@ elseif(NetBSD)
         src/detection/displayserver/linux/xcb.c
         src/detection/displayserver/linux/xlib.c
         src/detection/font/font_linux.c
-        src/detection/gpu/gpu_nosupport.c
+        src/detection/gpu/gpu_general.c
         src/detection/gpu/gpu_pci.c
         src/detection/gtk_qt/gtk.c
         src/detection/host/host_nbsd.c
@@ -725,9 +725,9 @@ elseif(NetBSD)
         src/detection/netio/netio_nosupport.c
         src/detection/opengl/opengl_linux.c
         src/detection/os/os_nbsd.c
-        src/detection/packages/packages_nosupport.c
+        src/detection/packages/packages_obsd.c
         src/detection/poweradapter/poweradapter_nosupport.c
-        src/detection/processes/processes_nosupport.c
+        src/detection/processes/processes_nbsd.c
         src/detection/gtk_qt/qt.c
         src/detection/sound/sound_linux.c
         src/detection/swap/swap_obsd.c
@@ -788,7 +788,8 @@ elseif(OpenBSD)
         src/detection/displayserver/linux/xcb.c
         src/detection/displayserver/linux/xlib.c
         src/detection/font/font_linux.c
-        src/detection/gpu/gpu_nosupport.c
+        src/detection/gpu/gpu_pci.c
+        src/detection/gpu/gpu_general.c
         src/detection/gtk_qt/gtk.c
         src/detection/host/host_obsd.c
         src/detection/lm/lm_nosupport.c
@@ -1053,10 +1054,6 @@ elseif(SunOS)
     )
 endif()
 
-if(ENABLE_STBPRINTF)
-    list(APPEND LIBFASTFETCH_SRC src/util/stb_printf.c)
-endif()
-
 if(ENABLE_DIRECTX_HEADERS)
     message(STATUS "Enabling DirectX headers for WSL")
     list(APPEND LIBFASTFETCH_SRC src/detection/gpu/gpu_wsl.cpp)
@@ -1096,10 +1093,6 @@ endif()
 add_library(libfastfetch OBJECT
     ${LIBFASTFETCH_SRC}
 )
-
-if(ENABLE_STBPRINTF)
-    target_compile_definitions(libfastfetch PUBLIC FF_USE_STBPRINTF)
-endif()
 
 if(yyjson_FOUND)
     target_compile_definitions(libfastfetch PUBLIC FF_USE_SYSTEM_YYJSON)
@@ -1145,11 +1138,13 @@ elseif(APPLE)
     target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE _XOPEN_SOURCE __STDC_WANT_LIB_EXT1__ _FILE_OFFSET_BITS=64 _DARWIN_C_SOURCE)
 elseif(OpenBSD)
     target_compile_definitions(libfastfetch PUBLIC _XOPEN_SOURCE=700 _FILE_OFFSET_BITS=64 _BSD_SOURCE)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,/usr/X11R6/lib") # detect x11 lib path automatically
 elseif(SunOS)
     target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE _XOPEN_SOURCE __STDC_WANT_LIB_EXT1__ _FILE_OFFSET_BITS=64 __EXTENSIONS__ _POSIX_C_SOURCE)
 elseif(NetBSD)
     target_compile_definitions(libfastfetch PUBLIC _GNU_SOURCE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-char-subscripts")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,/usr/X11R7/lib") # ditto
 endif()
 
 if(HAVE_STATX)
@@ -1295,7 +1290,7 @@ ff_lib_enable(EGL
     "egl"
     "EGL"
 )
-if(NOT OpenBSD)
+if(NOT OpenBSD AND NOT NetBSD)
     ff_lib_enable(GLX
         "glx"
         "GLX"
@@ -1333,6 +1328,10 @@ ff_lib_enable(ELF
 ff_lib_enable(DIRECTX_HEADERS
     "DirectX-Headers"
     "DirectX-Headers"
+)
+ff_lib_enable(PCIACCESS
+    "pciaccess"
+    "pciaccess"
 )
 # The system <libzfs.h> is only usable on SunOS. We provide our local copy of it so it's always available.
 if(ENABLE_LIBZFS)
@@ -1482,9 +1481,9 @@ if(WIN32)
     set(CMAKE_CXX_STANDARD 17)
 endif()
 if(FreeBSD)
-  set(CMAKE_REQUIRED_INCLUDES "/usr/local/include" "/usr/include")
+    set(CMAKE_REQUIRED_INCLUDES "/usr/local/include" "/usr/include")
 endif()
-if(LINUX OR FreeBSD)
+if(LINUX OR FreeBSD OR OpenBSD OR NetBSD)
     CHECK_INCLUDE_FILE("linux/videodev2.h" HAVE_LINUX_VIDEODEV2)
     if(HAVE_LINUX_VIDEODEV2)
         target_compile_definitions(libfastfetch PRIVATE FF_HAVE_LINUX_VIDEODEV2=1)
