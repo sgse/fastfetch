@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.29.0
+    VERSION 2.30.1
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -57,9 +57,7 @@ include(CMakeDependentOption)
 cmake_dependent_option(ENABLE_VULKAN "Enable vulkan" ON "LINUX OR APPLE OR FreeBSD OR OpenBSD OR NetBSD OR WIN32 OR ANDROID OR SunOS" OFF)
 cmake_dependent_option(ENABLE_WAYLAND "Enable wayland-client" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD" OFF)
 cmake_dependent_option(ENABLE_XCB_RANDR "Enable xcb-randr" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR SunOS" OFF)
-cmake_dependent_option(ENABLE_XCB "Enable xcb" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR SunOS" OFF)
 cmake_dependent_option(ENABLE_XRANDR "Enable xrandr" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR SunOS" OFF)
-cmake_dependent_option(ENABLE_X11 "Enable x11" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR SunOS" OFF)
 cmake_dependent_option(ENABLE_DRM "Enable libdrm" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR SunOS" OFF)
 cmake_dependent_option(ENABLE_DRM_AMDGPU "Enable libdrm_amdgpu" ON "LINUX" OFF)
 cmake_dependent_option(ENABLE_GIO "Enable gio-2.0" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR SunOS" OFF)
@@ -268,11 +266,15 @@ else()
     file(READ "src/data/help.json" DATATEXT_JSON_HELP)
 endif()
 
-if(ENABLE_EMBEDDED_PCIIDS AND NOT EXISTS "fastfetch_pciids.c.inc")
+if(ENABLE_EMBEDDED_PCIIDS AND NOT EXISTS "${PROJECT_BINARY_DIR}/fastfetch_pciids.c.inc")
     if(Python_FOUND)
         message(STATUS "Generating 'fastfetch_pciids.c.inc'")
         execute_process(COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen-pciids.py"
-                        OUTPUT_FILE "fastfetch_pciids.c.inc")
+                        OUTPUT_FILE "${PROJECT_BINARY_DIR}/fastfetch_pciids.c.inc"
+                        RESULT_VARIABLE PYTHON_PCIIDS_RETCODE)
+        if(NOT PYTHON_PCIIDS_RETCODE EQUAL 0)
+            message(FATAL_ERROR "Failed to generate 'fastfetch_pciids.c.inc'")
+        endif()
     else()
         message(WARNING "Python3 is not found, 'fastfetch_pciids.c.inc' will not be generated")
         set(ENABLE_EMBEDDED_PCIIDS OFF)
@@ -282,7 +284,11 @@ endif()
 if(Python_FOUND)
     message(STATUS "Generating 'fastfetch.1'")
     execute_process(COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen-man.py"
-                    OUTPUT_FILE "fastfetch.1")
+                    OUTPUT_FILE "${PROJECT_BINARY_DIR}/fastfetch.1"
+                    RESULT_VARIABLE PYTHON_MANPAGE_RETCODE)
+        if(NOT PYTHON_MANPAGE_RETCODE EQUAL 0)
+            message(FATAL_ERROR "Failed to generate 'fastfetch.1'")
+        endif()
 else()
     message(WARNING "Python3 is not found, use basic 'fastfetch.1.in' instead")
     string(TIMESTAMP FASTFETCH_BUILD_DATE "%d %B %Y" UTC)
@@ -887,7 +893,7 @@ elseif(APPLE)
         src/detection/media/media_apple.m
         src/detection/memory/memory_apple.c
         src/detection/mouse/mouse_apple.c
-        src/detection/netio/netio_bsd.c
+        src/detection/netio/netio_apple.c
         src/detection/opengl/opengl_apple.c
         src/detection/os/os_apple.m
         src/detection/packages/packages_apple.c
@@ -1180,6 +1186,16 @@ elseif(NetBSD)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,/usr/X11R7/lib -Wl,-rpath,/usr/pkg/lib") # ditto
 endif()
 
+if(FreeBSD OR OpenBSD OR NetBSD)
+    include(CheckStructHasMember)
+    set(CMAKE_REQUIRED_DEFINITIONS "-D_IFI_OQDROPS=1")
+    CHECK_STRUCT_HAS_MEMBER("struct if_data" ifi_oqdrops net/if.h HAVE_IFI_OQDROPS LANGUAGE C)
+    if(HAVE_IFI_OQDROPS)
+    target_compile_definitions(libfastfetch PUBLIC _IFI_OQDROPS FF_HAVE_IFI_OQDROPS)
+    endif()
+    unset(CMAKE_REQUIRED_DEFINITIONS)
+endif()
+
 if(HAVE_STATX)
     target_compile_definitions(libfastfetch PUBLIC FF_HAVE_STATX)
 endif()
@@ -1204,6 +1220,9 @@ endif()
 if(NOT BINARY_LINK_TYPE STREQUAL "dlopen")
     message(STATUS "Enabling custom link type: ${BINARY_LINK_TYPE}")
     target_compile_definitions(libfastfetch PRIVATE FF_DISABLE_DLOPEN=1)
+    if(NOT WIN32)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--copy-dt-needed-entries")
+    endif()
 endif()
 
 function(ff_lib_enable VARNAME PKGCONFIG_NAMES CMAKE_NAME)
@@ -1259,17 +1278,9 @@ ff_lib_enable(XCB_RANDR
     "xcb-randr"
     "XcbRandr"
 )
-ff_lib_enable(XCB
-    "xcb"
-    "Xcb"
-)
 ff_lib_enable(XRANDR
     "xrandr"
     "XRandr"
-)
-ff_lib_enable(X11
-    "x11"
-    "X11"
 )
 ff_lib_enable(DRM
     "libdrm"

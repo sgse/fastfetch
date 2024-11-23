@@ -1,3 +1,8 @@
+# 2.30.1
+
+Bugfixes:
+* Fix the destination where `fastfetch.1` is generated (#1403)
+
 # 2.30.0
 
 Changes:
@@ -13,6 +18,8 @@ Features:
 * Detect WM / DE by enumerating running processes (WM / DE, NetBSD)
 * Generate manual pages from `help.json` (Doc)
 * Detect marketing name of vivo smartphone (Host, Android)
+* Add txDrops detection if supported (NetIO, *BSD)
+* Support tilix version detection (Terminal, Linux)
 * Support percent type config in module level. Example: 
 
 ```json
@@ -38,12 +45,14 @@ Bugfixes:
 * Fix CPU frequency detection on Apple M4 (#1394, CPU, macOS)
 * Fix exe path detection on macOS (Shell / Terminal, macOS)
 * Fix logo fails to load from symlinked files on macOS (#1395, Logo, macOS)
+* Fix 32-bit truncation (NetIO, macOS)
 
 Logos:
 * Fix Lilidog
 * Add MidnightBSD
 * Add Unifi
 * Add Cosmic DE
+* Update openSUSE Tumbleweed
 
 # 2.29.0
 
