@@ -1912,6 +1912,15 @@ static const FFlogo G[] = {
         .colorKeys = FF_COLOR_FG_MAGENTA,
         .colorTitle = FF_COLOR_FG_WHITE,
     },
+    // GoralixOS
+    {
+        .names = {"GoralixOS"},
+        .lines = FASTFETCH_DATATEXT_LOGO_GORALIXOS,
+        .colors = {
+            FF_COLOR_FG_WHITE,
+            FF_COLOR_FG_LIGHT_BLACK,
+        },
+    },
     // GrapheneOS
     {
         .names = {"GrapheneOS"},
@@ -2477,10 +2486,10 @@ static const FFlogo L[] = {
         .names = {"LinuxLite", "Linux Lite", "linux_lite"},
         .lines = FASTFETCH_DATATEXT_LOGO_LINUXLITE,
         .colors = {
-            FF_COLOR_FG_YELLOW,
+            FF_COLOR_FG_GREEN,
             FF_COLOR_FG_WHITE,
         },
-        .colorKeys = FF_COLOR_FG_YELLOW,
+        .colorKeys = FF_COLOR_FG_GREEN,
         .colorTitle = FF_COLOR_FG_WHITE,
     },
     // LinuxLightSmall
@@ -2489,10 +2498,10 @@ static const FFlogo L[] = {
         .type = FF_LOGO_LINE_TYPE_SMALL_BIT,
         .lines = FASTFETCH_DATATEXT_LOGO_LINUXLITE_SMALL,
         .colors = {
-            FF_COLOR_FG_YELLOW,
+            FF_COLOR_FG_BLUE,
             FF_COLOR_FG_WHITE,
         },
-        .colorKeys = FF_COLOR_FG_YELLOW,
+        .colorKeys = FF_COLOR_FG_BLUE,
         .colorTitle = FF_COLOR_FG_WHITE,
     },
     // LinuxMint
@@ -3085,6 +3094,15 @@ static const FFlogo N[] = {
         },
         .colorKeys = FF_COLOR_FG_BLUE,
         .colorTitle = FF_COLOR_FG_WHITE,
+    },
+    // NurOS
+    {
+        .names = {"NurOS"},
+        .lines = FASTFETCH_DATATEXT_LOGO_NUROS,
+        .colors = {
+            FF_COLOR_FG_BLUE,
+            FF_COLOR_FG_WHITE,
+        },
     },
     // Nurunner
     {
@@ -4052,6 +4070,14 @@ static const FFlogo S[] = {
             FF_COLOR_FG_RED,
         },
     },
+    // Serpent OS
+    {
+        .names = {"Serpent OS"},
+        .lines = FASTFETCH_DATATEXT_LOGO_SERPENT_OS,
+        .colors = {
+            FF_COLOR_FG_WHITE,
+        },
+    },
     // Semc
     {
         .names = {"semc"},
@@ -4622,6 +4648,15 @@ static const FFlogo U[] = {
     {
         .names = {"Ultramarine", "Ultramarine Linux"},
         .lines = FASTFETCH_DATATEXT_LOGO_ULTRAMARINE,
+        .colors = {
+            FF_COLOR_FG_BLUE,
+            FF_COLOR_FG_WHITE,
+        },
+    },
+    // Ultramarine Small
+    {
+        .names = {"Ultramarine_small"},
+        .lines = FASTFETCH_DATATEXT_LOGO_ULTRAMARINE_SMALL,
         .colors = {
             FF_COLOR_FG_BLUE,
             FF_COLOR_FG_WHITE,

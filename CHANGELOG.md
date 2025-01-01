@@ -1,3 +1,101 @@
+# 2.33.0
+
+Changes:
+* Introduce a new CMake flag `-DBUILD_FLASHFETCH=OFF` to disable building flashfetch binaries
+    * Package managers are encouraged to enable it. See <https://github.com/fastfetch-cli/fastfetch/discussions/627> for detail
+
+Bugfixes:
+* Fix interconnect type detection (#1453, PhysicalDisk, Linux)
+    * Regression of v2.28
+* Don't report `proot` as terminal (Terminal, Android)
+* Remove a debug output (DiskIO, OpenBSD)
+* Fix media detection for some players (#1461, Media, Linux)
+    * Regression of v2.32
+
+Features:
+* Use `$POWERSHELL_VERSION` as PowerShell version if available (Shell, Windows)
+    * Fetching Windows PowerShell version can be very slow. Add `$env:POWERSHELL_VERSION = $PSVersionTable.PSVersion.ToString()` in `$PROFILE` before running `fastfetch` to improve the performance of `Shell` module
+* Add support for ubuntu-based armbian detection (#1447, OS, Linux)
+* Improve performance of Bluetooth detection (Bluetooth)
+    * We no longer report disconnected bluetooth devices in `--format json` when `--bluetooth-show-disconnected` isn't specified
+* Support brightness level detection for builtin displays (Brightness, OpenBSD / NetBSD)
+    * Requires root permission on OpenBSD
+* Support battery level detection (Battery, OpenBSD / NetBSD)
+* Support CPU temperature detection in NetBSD (CPU, NetBSD)
+* Hard code path of `libvulkan.so` for Android
+    * So that users don't need to install the vulkan-loader wrapper of termux
+
+Logo:
+* Add NurOS
+* Add GoralixOS
+
+# 2.32.1
+
+A hotfix for OpenBSD. No changes to other platforms.
+
+Bugfixes:
+* Fix package count detection on OpenBSD (Packages, OpenBSD)
+
+# 2.32.0
+
+Bugfixes:
+* Fix `pci.ids` file location on OpenBSD (GPU, OpenBSD)
+    * It's normally unused because enumerating PCI devices on OpenBSD requires root privileges
+* Fix bssid formatting (Wifi, Linux)
+* Fix Linux Lite distro detection (#1434, OS, Linux)
+* Suppress XE driver warnings from Mesa (#1435, OpenGL, Linux)
+* Fix format parameter name (#1443, Version)
+* Don't report useless information when Wifi is disabled (Wifi, FreeBSD)
+    * Currently there are issues when the SSID contains whitespaces. More fixes are expected in the future.
+* Always use physical size reported by X11 server to avoid inconsistent results (#1444, Display, Linux)
+
+Features:
+* Randomly select one if the logo source expands to multiple files (#1426, Logo)
+* Report mac product name when running Linux in MacBook (Host, Linux / FreeBSD)
+* Use screen size reported in DTD if make sense (Display)
+* Detect Virtualized Apple Silicon CPUs (CPU, Linux)
+* Add detection support for fvwm and ctwm (WM, OpenBSD / NetBSD)
+* Add Armbian-unofficial detection (OS, Linux)
+* Prefer surfaceless display when connect EGL (OpenGL)
+* Improve accuracy of WM detection on FreeBSD (WM, FreeBSD)
+* Add ratpoison window manager (WM, Linux)
+
+Logo:
+* Update Linux Lite
+* Add Serpent OS
+* Add Ultramarine Small
+* Update Debian
+
+# 2.31.0
+
+Bugfixes:
+* Improve performance of media detection; fix musikcube detection (Media, Linux)
+    * After the change, `general.processingTimeout` will also control the timeout of dbus remote calls
+* Fix invalid variable names (#1408, Users)
+* Change physical size detection to use basic display parameters (#1406)
+* Fix possible sigfaults when detecting displays (#1393)
+* Fix Nvidia card type detection
+* Fix wl-restart parsing (#1422, WM, Linux)
+* Fix syntax error in completion file (#1421)
+* Fix hunging when using `ssh-agent` as command text (#1418, Command, macOS)
+
+Features:
+* Remove support of xcb & xlib and xrandr extension is always required (Display)
+* Support preferred resolution & refresh rate detection
+    * On macOS there is no preferred resolution reported and maximum available resolution is reported instead.
+    * `--display-format {preferred-width}x{preferred-height}@{preferred-refresh-rate}`
+* Report scale factor in custom format (Display)
+    * `--display-format {scale-factor}`
+* Detect current Wi-Fi channel and maximum frequency (Wifi)
+* Report processor package count (#1413, CPU)
+* Remove duplicate whitespaces in CPU name
+* Support sakura terminal version & font detection (Terminal / TerminalFont, Linux)
+
+Logo:
+* Fix LMDE
+* Update MidOS
+* Add Windows Server 2025
+
 # 2.30.1
 
 Bugfixes:
