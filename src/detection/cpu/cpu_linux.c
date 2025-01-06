@@ -44,9 +44,17 @@ static double parseHwmonDir(FFstrbuf* dir, FFstrbuf* buffer)
     if(
         ffStrbufContainS(buffer, "cpu") ||
         ffStrbufEqualS(buffer, "k10temp") || // AMD
+        ffStrbufEqualS(buffer, "fam15h_power") || // AMD
         ffStrbufEqualS(buffer, "coretemp") // Intel
     ) return value / 1000.;
 
+    return 0.0/0.0;
+}
+
+static double detectTZTemp(FFstrbuf* buffer)
+{
+    if (ffReadFileBuffer("/sys/class/thermal/thermal_zone0/temp", buffer))
+        return ffStrbufToDouble(buffer) / 1000.;
     return 0.0/0.0;
 }
 
@@ -79,7 +87,7 @@ static double detectCPUTemp(void)
         ffStrbufSubstrBefore(&baseDir, baseDirLength);
     }
 
-    return 0.0/0.0;
+    return detectTZTemp(&buffer);
 }
 
 #ifdef __ANDROID__
@@ -188,6 +196,7 @@ static void detectArmName(FFstrbuf* cpuinfo, FFCPUResult* cpu, uint32_t implId)
                 {
                     // https://github.com/Dr-Noob/cpufetch/issues/213#issuecomment-1927782105
                     ffStrbufSetStatic(&cpu->name, "Virtualized Apple Silicon");
+                    ffStrbufGetlineRestore(&line, &len, cpuinfo);
                     return;
                 }
                 name = applePartId2name(partId);
@@ -243,7 +252,10 @@ static const char* parseCpuInfo(
             && cpu->name.length > 0 // #1202 #1204
             #endif
         )
+        {
+            ffStrbufGetlineRestore(&line, &len, cpuinfo);
             break;
+        }
 
         (void)(
             // arm64 doesn't have "model name"; arm32 does have "model name" but its value is not useful.
@@ -512,6 +524,8 @@ const char* ffDetectCPUImpl(const FFCPUOptions* options, FFCPUResult* cpu)
     cpu->coresPhysical = (uint16_t) ffStrbufToUInt(&physicalCoresBuffer, cpu->coresLogical);
     #if __x86_64__ || __i386__
     cpu->packages = getPackageCount(&cpuinfo);
+    if (cpu->packages > 1)
+        cpu->coresPhysical *= cpu->packages;
     #endif
 
     // Ref https://github.com/fastfetch-cli/fastfetch/issues/1194#issuecomment-2295058252

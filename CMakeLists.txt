@@ -534,7 +534,7 @@ if(LINUX)
         src/detection/users/users_linux.c
         src/detection/wallpaper/wallpaper_linux.c
         src/detection/wifi/wifi_linux.c
-        src/detection/wm/wm_nosupport.c
+        src/detection/wm/wm_linux.c
         src/detection/de/de_linux.c
         src/detection/wmtheme/wmtheme_linux.c
         src/detection/camera/camera_linux.c
@@ -922,7 +922,7 @@ elseif(APPLE)
         src/detection/users/users_linux.c
         src/detection/wallpaper/wallpaper_apple.m
         src/detection/wifi/wifi_apple.m
-        src/detection/wm/wm_apple.c
+        src/detection/wm/wm_apple.m
         src/detection/de/de_nosupport.c
         src/detection/wmtheme/wmtheme_apple.m
         src/detection/camera/camera_apple.m
@@ -1003,6 +1003,7 @@ elseif(WIN32)
         src/util/windows/registry.c
         src/util/windows/unicode.c
         src/util/windows/wmi.cpp
+        src/util/windows/version.c
         src/util/platform/FFPlatform_windows.c
         src/util/binary_windows.c
     )
