@@ -97,7 +97,11 @@ static void detectQualcomm(FFCPUResult* cpu)
 {
     // https://en.wikipedia.org/wiki/List_of_Qualcomm_Snapdragon_systems_on_chips
 
-    if (ffStrbufEqualS(&cpu->name, "SM8750"))
+    if (ffStrbufEqualS(&cpu->name, "SM8750-AC"))
+        ffStrbufSetStatic(&cpu->name, "Qualcomm Snapdragon 8 Elite for Galaxy [SM8750-AC]");
+    else if (ffStrbufEqualS(&cpu->name, "SM8750-3"))
+        ffStrbufSetStatic(&cpu->name, "Qualcomm Snapdragon 8 Elite [SM8750-3]");
+    else if (ffStrbufEqualS(&cpu->name, "SM8750"))
         ffStrbufSetStatic(&cpu->name, "Qualcomm Snapdragon 8 Elite [SM8750]");
     else if (ffStrbufEqualS(&cpu->name, "SM8635"))
         ffStrbufSetStatic(&cpu->name, "Qualcomm Snapdragon 8s Gen 3 [SM8635]");
@@ -279,11 +283,7 @@ static const char* parseCpuInfo(
     while(ffStrbufGetline(&line, &len, cpuinfo))
     {
         //Stop after reasonable information is acquired
-        if((*line == '\0' || *line == '\n')
-            #if __arm__ || __aarch64__ || __loongarch__
-            && cpu->name.length > 0 // #1202 #1204
-            #endif
-        )
+        if((*line == '\0' || *line == '\n') && cpu->name.length > 0)
         {
             ffStrbufGetlineRestore(&line, &len, cpuinfo);
             break;
@@ -292,28 +292,37 @@ static const char* parseCpuInfo(
         (void)(
             // arm64 doesn't have "model name"; arm32 does have "model name" but its value is not useful.
             // "Hardware" should always be used in this case
-            #if !(__arm__ || __aarch64__)
+            #if __x86_64__ || __i386__
             (cpu->name.length == 0 && ffParsePropLine(line, "model name :", &cpu->name)) ||
             (cpu->vendor.length == 0 && ffParsePropLine(line, "vendor_id :", &cpu->vendor)) ||
             (physicalCoresBuffer->length == 0 && ffParsePropLine(line, "cpu cores :", physicalCoresBuffer)) ||
             (cpuMHz->length == 0 && ffParsePropLine(line, "cpu MHz :", cpuMHz)) ||
             #endif
 
-            #if !(__x86_64__ || __i386__ || __arm__ || __aarch64__)
-            (cpuIsa->length == 0 && ffParsePropLine(line, "isa :", cpuIsa)) ||
-            (cpuUarch->length == 0 && ffParsePropLine(line, "uarch :", cpuUarch)) ||
-            #endif
-
             #if __arm__ || __aarch64__
             (cpuImplementer->length == 0 && ffParsePropLine(line, "CPU implementer :", cpuImplementer)) ||
             (cpu->name.length == 0 && ffParsePropLine(line, "Hardware :", &cpu->name)) || //For Android devices
             #endif
+
             #if __powerpc__ || __powerpc
+            (cpuMHz->length == 0 && ffParsePropLine(line, "clock :", &cpuMHz)) || //For POWER
             (cpu->name.length == 0 && ffParsePropLine(line, "cpu :", &cpu->name)) || //For POWER
             #endif
-            #if __mips__
+
+            #if __mips__ || __mips
             (cpu->name.length == 0 && ffParsePropLine(line, "cpu model :", &cpu->name)) || //For MIPS
             #endif
+
+            #if __loongarch__
+            (cpu->name.length == 0 && ffParsePropLine(line, "Model Name :", &cpu->name)) ||
+            (cpuMHz->length == 0 && ffParsePropLine(line, "CPU MHz :", cpuMHz)) ||
+            #endif
+
+            #if __riscv__ || __loongarch__
+            (cpuIsa->length == 0 && ffParsePropLine(line, "isa :", cpuIsa)) ||
+            (cpuUarch->length == 0 && ffParsePropLine(line, "uarch :", cpuUarch)) ||
+            #endif
+
             false
         );
     }
@@ -410,6 +419,59 @@ static bool detectFrequency(FFCPUResult* cpu, const FFCPUOptions* options)
     return true;
 }
 
+#if __i386__ || __x86_64__
+
+FF_MAYBE_UNUSED static uint16_t getPackageCount(FFstrbuf* cpuinfo)
+{
+    const char* p = cpuinfo->chars;
+    uint64_t low = 0, high = 0;
+
+    while ((p = memmem(p, cpuinfo->length - (uint32_t) (p - cpuinfo->chars), "\nphysical id\t:", strlen("\nphysical id\t:"))))
+    {
+        if (!p) break;
+        p += strlen("\nphysical id\t:");
+        char* pend;
+        unsigned long id = strtoul(p, &pend, 10);
+        if (__builtin_expect(id > 64, false)) // Do 129-socket boards exist?
+            high |= 1 << (id - 64);
+        else
+            low |= 1 << id;
+        p = pend;
+    }
+
+    return (uint16_t) (__builtin_popcountll(low) + __builtin_popcountll(high));
+}
+
+FF_MAYBE_UNUSED static const char* detectCPUX86(const FFCPUOptions* options, FFCPUResult* cpu)
+{
+    FF_STRBUF_AUTO_DESTROY cpuinfo = ffStrbufCreateA(PROC_FILE_BUFFSIZ);
+    if (!ffReadFileBuffer("/proc/cpuinfo", &cpuinfo) || cpuinfo.length == 0)
+        return "ffReadFileBuffer(\"/proc/cpuinfo\") failed";
+
+    FF_STRBUF_AUTO_DESTROY physicalCoresBuffer = ffStrbufCreate();
+    FF_STRBUF_AUTO_DESTROY cpuMHz = ffStrbufCreate();
+    const char* error = parseCpuInfo(&cpuinfo, cpu, &physicalCoresBuffer, &cpuMHz, NULL,NULL, NULL);
+    if (error) return error;
+
+    cpu->coresLogical = (uint16_t) get_nprocs_conf();
+    cpu->coresOnline = (uint16_t) get_nprocs();
+    cpu->packages = getPackageCount(&cpuinfo);
+    cpu->coresPhysical = (uint16_t) ffStrbufToUInt(&physicalCoresBuffer, 0); // physical cores in single package
+    if (cpu->coresPhysical == 0)
+        cpu->coresPhysical = cpu->coresLogical;
+    else if (cpu->packages > 1)
+        cpu->coresPhysical *= cpu->packages;
+
+    // Ref https://github.com/fastfetch-cli/fastfetch/issues/1194#issuecomment-2295058252
+    ffCPUDetectSpeedByCpuid(cpu);
+    if (!detectFrequency(cpu, options) || cpu->frequencyBase == 0)
+        cpu->frequencyBase = (uint32_t) ffStrbufToUInt(&cpuMHz, 0);
+
+    return NULL;
+}
+
+#else
+
 FF_MAYBE_UNUSED static void parseIsa(FFstrbuf* cpuIsa)
 {
     // Always use the last part of the ISA string. Ref: #590 #1204
@@ -432,7 +494,7 @@ FF_MAYBE_UNUSED static void parseIsa(FFstrbuf* cpuIsa)
     }
 }
 
-FF_MAYBE_UNUSED static void detectArmSoc(FFCPUResult* cpu)
+FF_MAYBE_UNUSED static void detectSocName(FFCPUResult* cpu)
 {
     if (cpu->name.length > 0)
         return;
@@ -513,88 +575,74 @@ FF_MAYBE_UNUSED static void detectArmSoc(FFCPUResult* cpu)
     }
 }
 
-FF_MAYBE_UNUSED static uint16_t getPackageCount(FFstrbuf* cpuinfo)
+FF_MAYBE_UNUSED static const char* detectCPUOthers(const FFCPUOptions* options, FFCPUResult* cpu)
 {
-    const char* p = cpuinfo->chars;
-    uint64_t low = 0, high = 0;
-
-    while ((p = memmem(p, cpuinfo->length - (uint32_t) (p - cpuinfo->chars), "\nphysical id\t:", strlen("\nphysical id\t:"))))
-    {
-        if (!p) break;
-        p += strlen("\nphysical id\t:");
-        char* pend;
-        unsigned long id = strtoul(p, &pend, 10);
-        if (__builtin_expect(id > 64, false)) // Do 129-socket boards exist?
-            high |= 1 << (id - 64);
-        else
-            low |= 1 << id;
-        p = pend;
-    }
-
-    return (uint16_t) (__builtin_popcountll(low) + __builtin_popcountll(high));
-}
-
-const char* ffDetectCPUImpl(const FFCPUOptions* options, FFCPUResult* cpu)
-{
-    FF_STRBUF_AUTO_DESTROY cpuinfo = ffStrbufCreateA(PROC_FILE_BUFFSIZ);
-    if (!ffReadFileBuffer("/proc/cpuinfo", &cpuinfo) || cpuinfo.length == 0)
-        return "ffReadFileBuffer(\"/proc/cpuinfo\") failed";
-
-    cpu->temperature = options->temp ? detectCPUTemp() : FF_CPU_TEMP_UNSET;
-
-    FF_STRBUF_AUTO_DESTROY physicalCoresBuffer = ffStrbufCreate();
-    FF_STRBUF_AUTO_DESTROY cpuMHz = ffStrbufCreate();
-    FF_STRBUF_AUTO_DESTROY cpuIsa = ffStrbufCreate();
-    FF_STRBUF_AUTO_DESTROY cpuUarch = ffStrbufCreate();
-    FF_STRBUF_AUTO_DESTROY cpuImplementerStr = ffStrbufCreate();
-
-    const char* error = parseCpuInfo(&cpuinfo, cpu, &physicalCoresBuffer, &cpuMHz, &cpuIsa, &cpuUarch, &cpuImplementerStr);
-    if (error) return error;
-
-    cpu->coresLogical = (uint16_t) get_nprocs_conf();
+    cpu->coresPhysical = cpu->coresLogical = (uint16_t) get_nprocs_conf();
     cpu->coresOnline = (uint16_t) get_nprocs();
-    cpu->coresPhysical = (uint16_t) ffStrbufToUInt(&physicalCoresBuffer, cpu->coresLogical);
-    #if __x86_64__ || __i386__
-    cpu->packages = getPackageCount(&cpuinfo);
-    if (cpu->packages > 1)
-        cpu->coresPhysical *= cpu->packages;
-    #endif
-
-    // Ref https://github.com/fastfetch-cli/fastfetch/issues/1194#issuecomment-2295058252
-    ffCPUDetectSpeedByCpuid(cpu);
-    if (!detectFrequency(cpu, options) || cpu->frequencyBase == 0)
-        cpu->frequencyBase = (uint32_t) ffStrbufToUInt(&cpuMHz, 0);
-
-    #if !(__x86_64__ || __i386__ || __arm__ || __aarch64__)
-    if(cpuUarch.length > 0)
-    {
-        if(cpu->name.length > 0)
-            ffStrbufAppendC(&cpu->name, ' ');
-        ffStrbufAppend(&cpu->name, &cpuUarch);
-    }
-
-    if(cpuIsa.length > 0)
-    {
-        parseIsa(&cpuIsa);
-        if(cpu->name.length > 0)
-            ffStrbufAppendC(&cpu->name, ' ');
-        ffStrbufAppend(&cpu->name, &cpuIsa);
-    }
-    #endif
-
-    #if __arm__ || __aarch64__
-    uint32_t cpuImplementer = (uint32_t) strtoul(cpuImplementerStr.chars, NULL, 16);
-    ffStrbufSetStatic(&cpu->vendor, hwImplId2Vendor(cpuImplementer));
 
     #if __ANDROID__
     detectAndroid(cpu);
     #else
-    detectArmSoc(cpu);
+    detectSocName(cpu);
     #endif
+
+    detectFrequency(cpu, options);
 
     if (cpu->name.length == 0)
-        detectArmName(&cpuinfo, cpu, cpuImplementer);
-    #endif
+    {
+        FF_STRBUF_AUTO_DESTROY cpuinfo = ffStrbufCreateA(PROC_FILE_BUFFSIZ);
+        if (!ffReadFileBuffer("/proc/cpuinfo", &cpuinfo) || cpuinfo.length == 0)
+            return "ffReadFileBuffer(\"/proc/cpuinfo\") failed";
+
+        FF_STRBUF_AUTO_DESTROY cpuMHz = ffStrbufCreate();
+        FF_STRBUF_AUTO_DESTROY cpuIsa = ffStrbufCreate();
+        FF_STRBUF_AUTO_DESTROY cpuUarch = ffStrbufCreate();
+        FF_STRBUF_AUTO_DESTROY cpuImplementerStr = ffStrbufCreate();
+
+        const char* error = parseCpuInfo(&cpuinfo, cpu, NULL, &cpuMHz, &cpuIsa, &cpuUarch, &cpuImplementerStr);
+        if (error) return error;
+
+        if (cpu->frequencyBase == 0)
+            cpu->frequencyBase = (uint32_t) ffStrbufToUInt(&cpuMHz, 0);
+
+        #if __arm__ || __aarch64__
+        uint32_t cpuImplementer = (uint32_t) strtoul(cpuImplementerStr.chars, NULL, 16);
+        ffStrbufSetStatic(&cpu->vendor, hwImplId2Vendor(cpuImplementer));
+
+        if (cpu->name.length == 0)
+            detectArmName(&cpuinfo, cpu, cpuImplementer);
+        #elif __riscv__ || __riscv
+        if (cpu->name.length == 0)
+        {
+            if(cpuUarch.length > 0)
+            {
+                if(cpu->name.length > 0)
+                    ffStrbufAppendC(&cpu->name, ' ');
+                ffStrbufAppend(&cpu->name, &cpuUarch);
+            }
+
+            if(cpuIsa.length > 0)
+            {
+                parseIsa(&cpuIsa);
+                if(cpu->name.length > 0)
+                    ffStrbufAppendC(&cpu->name, ' ');
+                ffStrbufAppend(&cpu->name, &cpuIsa);
+            }
+        }
+        #endif
+    }
 
     return NULL;
+}
+#endif
+
+const char* ffDetectCPUImpl(const FFCPUOptions* options, FFCPUResult* cpu)
+{
+    cpu->temperature = options->temp ? detectCPUTemp() : FF_CPU_TEMP_UNSET;
+
+    #if __x86_64__ || __i386__
+    return detectCPUX86(options, cpu);
+    #else
+    return detectCPUOthers(options, cpu);
+    #endif
 }
