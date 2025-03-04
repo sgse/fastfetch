@@ -1,3 +1,100 @@
+# 2.38.0
+
+Bugfixes:
+* Fix empty battery slots handling (Battery, Haiku, #1575)
+* Fix `{day-pretty}` output in custom format (DateTime, Windows)
+* Fix VanillaOS detection (OS, Linux)
+* Fix secure boot testing (Bootmgr, Linux, #1584)
+* Fix the SI unit "kB" in help message (#1589)
+* Fix segfault on macOS 10.15 when using the binary downloaded from Github Releases (Camera, macOS, #1594)
+
+Features:
+* Support Chassis module in macOS (Chassis, macOS)
+* Allow customize key format with kernel name and distro name (OS)
+* Add missing `{icon}` in custom key format (Battery)
+* Add missing `{mountpoint}` and `{mount-from}` in custom output format (Disk, #1577)
+* Support percentage num & bar in custom format (GPU, #1583)
+* Support `pisi` package manager detection (Packages, Linux)
+* Support termite terminal font detection (TerminalFont, Linux)
+* Report monitor type in Brightness module (Brightness)
+
+Logo:
+* Add `opensuse-tumbleweed_small`
+* Add `Bedrock_small`
+* Add `fastfetch`
+* Remove some unnecessary distro names
+
+# 2.37.0
+
+Changes:
+* Option `--escape-bedrock` is removed. The function is always enabled now.
+
+Features:
+* Support for Haiku is greatly improved (Haiku)
+    * CPU, GPU, Disk, Sound, Terminal, Terminal Font, Init System, Battery, Mouse, Keyboard, NetIO, CPU Usage, Physical Disk and OpenGL should work on Haiku now
+    * SMBIOS related modules (Host, Bios, Board, Chassis, Physical Memory) should work in platforms with legacy BIOS system.
+    * Support for Gamepad and Bluetooth are WIP.
+    * Some bugs are found and fixed.
+* Remove `python-requests` dependency in `scripts/gen-*.py`.
+* Add cmake option `-DENABLE_EMBEDDED_AMDGPUIDS=BOOL` (disabled by default)
+    * If enabled, fastfetch will embed the newest [`amdgpu.ids`](https://gitlab.freedesktop.org/mesa/drm/-/blob/main/data/amdgpu.ids?ref_type=heads) file into fastfetch binary.
+* Weather module now honors `display.temp.unit` option (#1560, Weather)
+* Support Physical Memory module in NetBSD (PhysicalMemory, NetBSD)
+    * Requires root permission
+* Improve non-intel CPU detection in NetBSD (#1573, CPU, NetBSD)
+
+Bugfixes:
+* Fix building in macOS 10.13 (GPU, macOS)
+* Properly round percent values when detecting volume (#1558, Sound)
+* Fix Physical Memory module doesn't work in `--format json` mode
+* Add some missing variable inits (GPU, Linux)
+* Fix `--localip-default-route-only false` not working with `--gen-config` (#1570, LocalIP)
+
+Logo:
+* Update Rosa linux
+* Add Haiku2
+
+# 2.36.1
+
+Changes:
+* To use [the native arm64 runner of Github Action](https://github.blog/changelog/2025-01-16-linux-arm64-hosted-runners-now-available-for-free-in-public-repositories-public-preview/), Linux aarch64 binary is built with Ubuntu 22.04 (Glibc 2.35, Debian 12).
+
+Bugfixes:
+* Chimera Linux logo is now displayed correctly (#1554, Logo)
+    * Regression of 2.36.0
+* Fix building on Haiku
+
+Logo:
+* Fix ALT Linux
+
+# 2.36.0
+
+Bugfixes:
+* Trim leading slash for login shells (Shell, OpenBSD)
+* Prefer SOC name if available over CPU name (CPU, Linux)
+
+Features:
+* Use kernel API to detect sound devices (Sound, NetBSD)
+* Use sndio for sound server detection on OpenBSD (Sound, OpenBSD)
+* Add minimal implementation for Haiku (#1538, Haiku)
+* Support CPU & GPU temperature detection for M4x (CPU / GPU, macOS)
+* Support VMEM size detection for old Nvidia cards (GPU, Linux)
+* Use [recommendedMaxWorkingSetSize](https://developer.apple.com/documentation/metal/mtldevice/recommendedmaxworkingsetsize) as total GPU mem size (GPU, macOS)
+* Support Physical core count and CPU package count detection for loongarch (CPU, Linux)
+* Split ID_LIKE when used for distro matching (#1540, Logo)
+* Capitalize `{type}`'s first letter in custom format (#1543, Display)
+* Support model name detection for s390x (CPU, Linux)
+* Support more Armbian variants detection (#1547, OS, Linux)
+* Support the syntax of `{$ENV_VAR}` in custom format, which will be replaced by the value of the environment variable `ENV_VAR` (#1541)
+    * This is another way to pass 3rd-party data to fastfetch besides `Custom` module.
+* Improve performance of Tilix version detection (Terminal, Linux)
+
+Logo:
+* Update arch_old
+* Add Nexa Linux
+* Add filotimo
+* Update some distro names
+
 # 2.35.0
 
 Bugfixes:
