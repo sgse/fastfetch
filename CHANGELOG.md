@@ -1,3 +1,104 @@
+# 2.40.4
+
+Bugfixes:
+* Fix loading presets config on Windows (Windows, #1682)
+    * Regression of v2.40.0
+* Remove the prefix `v` of Hyprland version on Arch Linux (WM, Linux)
+
+# 2.40.3
+
+Bugfixes:
+* Fix loading example configs from presets directory (#1672)
+    * Regression of v2.40.2
+* Mark kitty image protocol support for warp terminal on macOS too (Logo)
+
+# 2.40.2
+
+Changes:
+* Since v2.40.0, we've been loading config files from the directory where the fastfetch binary is located. However, this approach may lead to loading unexpected files. For example, `fastfetch -c groups` would attempt to load `/usr/bin/groups`. Therefore, we now enforce the `.jsonc` extension when loading config files. Examples:
+    1. `-c filename`: loads `filename.jsonc`
+    2. `-c filename.jsonc`: loads `filename.jsonc`
+    3. `-c filename.json`: loads `filename.json` and enforces strict JSON syntax (no comments or trailing commas)
+    4. `-c filename.ext`: loads `filename.ext.jsonc` (`.jsonc` extension is enforced)
+
+Features:
+* Mark kitty image protocol support for warp terminal (Logo)
+* Documentation improvements
+
+# 2.40.1
+
+Bugfixes:
+* Fix compiling error on old intel platform (TPM, macOS)
+* Fix `--file-raw -` no longer working (Logo, #1659)
+    * Regression of v2.40.0
+
+# 2.40.0
+
+Changes:
+* In `key-format` of `LocalIP` module, `{name}` has been renamed to `{ifname}` for consistency (LocalIP, #1639)
+
+Features:
+* Support Warp Terminal font detection (TerminalFont, Windows)
+* Support more AMD GPU information using ADL SDK, including memory type detection (GPU, Windows)
+* Support Intel dGPU memory type detection (GPU, Windows)
+* Support Nvidia VMEM type detection via NVAPI (GPU, Windows, #993)
+* Support Boot manager detection for OpenBSD and NetBSD (Bootmgr, OpenBSD / NetBSD)
+* Use `SystemConfiguration` for DNS entries detection (DNS, macOS)
+* Add `systemd-resolved` support for DNS module (DNS, Linux, #1646)
+* Improve performance and accuracy of Wifi detection on FreeBSD using ioctl (Wifi, FreeBSD)
+* Support remaining time reporting for batteries on NetBSD (Battery, NetBSD)
+* Add new Mac models support (Host, macOS)
+* Load config from fastfetch binary path with `--config` option (#1649)
+* Support TPM detection on macOS (TPM, macOS)
+* Support IPv6 client address report (Users, Linux / Windows)
+* Support default route detection for IPv6 (LocalIP, Linux)
+* Round seconds to the nearest minute to match the behavior of `uptime` command (Uptime)
+
+Bugfixes:
+* Fix `outputColor` not working when `length` is set in Separator module (#1644)
+* Fix CPU detection on PowerPC platforms (#1640, CPU, Linux)
+* Fix battery manufacture date detection (Battery, macOS)
+* Fix battery critical state detection (Battery, Linux)
+* Fix Warp Terminal PID detection (Terminal, macOS)
+* Remove disk creation time detection support on SunOS as ctim is file status change timestamp, not creation time (Disk, SunOS)
+* Fall back to KDGKBINFO if `usbhid` fails (Keyboard, FreeBSD)
+* Fix multiple paging file support (Swap, Windows)
+* Fix memleaks, code smells in multiple modules
+* Fix boot time calculation on NetBSD (Uptime, NetBSD)
+* Temporarily fix Hyprland version detection (WM, Linux, #1657)
+
+Logo:
+* Fix opensuse-tumbleweed_small (#1636)
+* Change WiiLinuxNgx to more generic name with aliases Wii-Linux and WiiLinux (#1633)
+* Change name of Xray-OS to Ada (#1651)
+* Change Nexa Linux logo (#1653)
+
+# 2.39.1
+
+Bugfixes:
+* Fix a regression that PublicIP detection fails randomly (PublicIP, #1629)
+
+# 2.39.0
+
+Changes:
+* OSMesa backend for OpenGL detection is removed (#1618)
+* Fastfetch no longer tries to use the private framework `Apple80211` to acquire SSID for Wifi module, which is only useful for macOS Sonoma (Wifi, macOS)
+
+Features:
+* Improve accuracy of HDR support on Windows 11 24H2 (Display, Windows)
+* Improve performance of SSID detection on macOS Sequoia (Wifi, macOS, #1597)
+* Support warp terminal version detection on Windows (Terminal, Windows)
+* Support default route detection on OpenBSD & DragonFly BSD (LocalIP, OpenBSD / DragonFly)
+* Improve bash completion script
+* Improve performance of networking (PublicIP / Weather)
+* Support pkgsrc package manager detection on Linux (Packages, Linux)
+
+Logo:
+* Add Common Torizon OS
+* Change FoxOS to WolfOS
+* Add Bredos
+* Add NetBSD2
+
 # 2.38.0
 
 Bugfixes:
@@ -310,7 +411,7 @@ Features:
 * Support tilix version detection (Terminal, Linux)
 * Support percent type config in module level. Example: 
 
-```json
+```jsonc
 {
     "type": "memory",
     "percent": {

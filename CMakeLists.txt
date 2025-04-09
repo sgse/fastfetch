@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0) # target_link_libraries with OBJECT libs & project homepage url
 
 project(fastfetch
-    VERSION 2.38.0
+    VERSION 2.40.4
     LANGUAGES C
     DESCRIPTION "Fast neofetch-like system information tool"
     HOMEPAGE_URL "https://github.com/fastfetch-cli/fastfetch"
@@ -74,7 +74,6 @@ cmake_dependent_option(ENABLE_CHAFA "Enable chafa" ON "ENABLE_IMAGEMAGICK6 OR EN
 cmake_dependent_option(ENABLE_ZLIB "Enable zlib" ON "ENABLE_IMAGEMAGICK6 OR ENABLE_IMAGEMAGICK7" OFF)
 cmake_dependent_option(ENABLE_EGL "Enable egl" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR ANDROID OR WIN32 OR SunOS OR Haiku" OFF)
 cmake_dependent_option(ENABLE_GLX "Enable glx" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR ANDROID OR SunOS" OFF)
-cmake_dependent_option(ENABLE_OSMESA "Enable osmesa" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR SunOS OR Haiku" OFF)
 cmake_dependent_option(ENABLE_OPENCL "Enable opencl" ON "LINUX OR FreeBSD OR OpenBSD OR NetBSD OR WIN32 OR ANDROID OR SunOS OR Haiku" OFF)
 cmake_dependent_option(ENABLE_FREETYPE "Enable freetype" ON "ANDROID" OFF)
 cmake_dependent_option(ENABLE_PULSE "Enable pulse" ON "LINUX OR SunOS" OFF)
@@ -103,7 +102,7 @@ if(NOT BINARY_LINK_TYPE IN_LIST BINARY_LINK_TYPE_OPTIONS)
     message(FATAL_ERROR "BINARY_LINK_TYPE must be one of ${BINARY_LINK_TYPE_OPTIONS}")
 endif()
 
-set(PACKAGE_MANAGERS AM APK BREW CHOCO DPKG EMERGE EOPKG FLATPAK GUIX LINGLONG LPKG LPKGBUILD MACPORTS NIX OPKG PACMAN PACSTALL PALUDIS PISI PKG PKGTOOL RPM SCOOP SNAP SORCERY WINGET XBPS)
+set(PACKAGE_MANAGERS AM APK BREW CHOCO DPKG EMERGE EOPKG FLATPAK GUIX LINGLONG LPKG LPKGBUILD MACPORTS NIX OPKG PACMAN PACSTALL PALUDIS PISI PKG PKGTOOL RPM SCOOP SNAP SOAR SORCERY WINGET XBPS)
 foreach(package_manager ${PACKAGE_MANAGERS})
     if(package_manager STREQUAL "WINGET")
         option(PACKAGES_DISABLE_${package_manager} "Disable ${package_manager} package manager detection by default" ON)
@@ -326,9 +325,6 @@ endif()
 
 fastfetch_encode_c_string("${DATATEXT_JSON_HELP}" DATATEXT_JSON_HELP)
 fastfetch_load_text(src/data/structure.txt DATATEXT_STRUCTURE)
-fastfetch_load_text(src/data/help_footer.txt DATATEXT_HELP_FOOTER)
-fastfetch_load_text(src/data/help_color.txt DATATEXT_HELP_COLOR)
-fastfetch_load_text(src/data/help_format.txt DATATEXT_HELP_FORMAT)
 
 configure_file(src/fastfetch_config.h.in fastfetch_config.h @ONLY)
 configure_file(src/fastfetch_datatext.h.in fastfetch_datatext.h @ONLY)
@@ -365,6 +361,7 @@ set(LIBFASTFETCH_SRC
     src/common/library.c
     src/common/modules.c
     src/common/netif/netif.c
+    src/common/networking/networking_common.c
     src/common/option.c
     src/common/parsing.c
     src/common/printing.c
@@ -493,7 +490,7 @@ if(LINUX)
         src/common/dbus.c
         src/common/io/io_unix.c
         src/common/netif/netif_linux.c
-        src/common/networking_linux.c
+        src/common/networking/networking_linux.c
         src/common/processing_linux.c
         src/detection/battery/battery_linux.c
         src/detection/bios/bios_linux.c
@@ -574,7 +571,7 @@ elseif(ANDROID)
     list(APPEND LIBFASTFETCH_SRC
         src/common/io/io_unix.c
         src/common/netif/netif_linux.c
-        src/common/networking_linux.c
+        src/common/networking/networking_linux.c
         src/common/processing_linux.c
         src/detection/battery/battery_android.c
         src/detection/bios/bios_android.c
@@ -640,7 +637,7 @@ elseif(FreeBSD)
         src/common/dbus.c
         src/common/io/io_unix.c
         src/common/netif/netif_bsd.c
-        src/common/networking_linux.c
+        src/common/networking/networking_linux.c
         src/common/processing_linux.c
         src/common/sysctl.c
         src/detection/battery/battery_bsd.c
@@ -708,7 +705,6 @@ elseif(FreeBSD)
         src/detection/uptime/uptime_bsd.c
         src/detection/users/users_linux.c
         src/detection/wallpaper/wallpaper_linux.c
-        src/detection/wifi/wifi_bsd.c
         src/detection/wm/wm_nosupport.c
         src/detection/de/de_linux.c
         src/detection/wmtheme/wmtheme_linux.c
@@ -720,10 +716,12 @@ elseif(FreeBSD)
     if(DragonFly)
         list(APPEND LIBFASTFETCH_SRC
             src/detection/bluetooth/bluetooth_nosupport.c
+            src/detection/wifi/wifi_nosupport.c
         )
     else()
         list(APPEND LIBFASTFETCH_SRC
             src/detection/bluetooth/bluetooth_bsd.c
+            src/detection/wifi/wifi_bsd.c
         )
     endif()
 elseif(NetBSD)
@@ -731,7 +729,7 @@ elseif(NetBSD)
         src/common/dbus.c
         src/common/io/io_unix.c
         src/common/netif/netif_bsd.c
-        src/common/networking_linux.c
+        src/common/networking/networking_linux.c
         src/common/processing_linux.c
         src/common/sysctl.c
         src/detection/battery/battery_nbsd.c
@@ -739,7 +737,7 @@ elseif(NetBSD)
         src/detection/bluetooth/bluetooth_nosupport.c
         src/detection/bluetoothradio/bluetoothradio_nosupport.c
         src/detection/board/board_nbsd.c
-        src/detection/bootmgr/bootmgr_nosupport.c
+        src/detection/bootmgr/bootmgr_bsd.c
         src/detection/brightness/brightness_nbsd.c
         src/detection/btrfs/btrfs_nosupport.c
         src/detection/chassis/chassis_nbsd.c
@@ -813,26 +811,26 @@ elseif(OpenBSD)
         src/common/dbus.c
         src/common/io/io_unix.c
         src/common/netif/netif_bsd.c
-        src/common/networking_linux.c
+        src/common/networking/networking_linux.c
         src/common/processing_linux.c
         src/common/sysctl.c
         src/detection/battery/battery_obsd.c
-        src/detection/bios/bios_nosupport.c
+        src/detection/bios/bios_windows.c
         src/detection/bluetooth/bluetooth_nosupport.c
         src/detection/bluetoothradio/bluetoothradio_nosupport.c
-        src/detection/board/board_nosupport.c
-        src/detection/bootmgr/bootmgr_nosupport.c
+        src/detection/board/board_windows.c
+        src/detection/bootmgr/bootmgr_bsd.c
         src/detection/brightness/brightness_obsd.c
         src/detection/btrfs/btrfs_nosupport.c
-        src/detection/chassis/chassis_nosupport.c
+        src/detection/chassis/chassis_windows.c
         src/detection/cpu/cpu_obsd.c
-        src/detection/cpucache/cpucache_nosupport.c
+        src/detection/cpucache/cpucache_shared.c
         src/detection/cpuusage/cpuusage_bsd.c
         src/detection/cursor/cursor_linux.c
         src/detection/disk/disk_bsd.c
         src/detection/dns/dns_linux.c
         src/detection/physicaldisk/physicaldisk_nosupport.c
-        src/detection/physicalmemory/physicalmemory_nosupport.c
+        src/detection/physicalmemory/physicalmemory_linux.c
         src/detection/diskio/diskio_obsd.c
         src/detection/displayserver/linux/displayserver_linux.c
         src/detection/displayserver/linux/drm.c
@@ -889,12 +887,13 @@ elseif(OpenBSD)
         src/detection/zpool/zpool_nosupport.c
         src/util/platform/FFPlatform_unix.c
         src/util/binary_linux.c
+        src/util/smbiosHelper.c
     )
 elseif(APPLE)
     list(APPEND LIBFASTFETCH_SRC
         src/common/io/io_unix.c
         src/common/netif/netif_bsd.c
-        src/common/networking_linux.c
+        src/common/networking/networking_linux.c
         src/common/processing_linux.c
         src/common/sysctl.c
         src/detection/battery/battery_apple.c
@@ -911,7 +910,7 @@ elseif(APPLE)
         src/detection/cpuusage/cpuusage_apple.c
         src/detection/cursor/cursor_apple.m
         src/detection/disk/disk_bsd.c
-        src/detection/dns/dns_linux.c
+        src/detection/dns/dns_apple.c
         src/detection/physicaldisk/physicaldisk_apple.c
         src/detection/physicalmemory/physicalmemory_apple.m
         src/detection/diskio/diskio_apple.c
@@ -945,7 +944,7 @@ elseif(APPLE)
         src/detection/terminalshell/terminalshell_linux.c
         src/detection/terminalsize/terminalsize_linux.c
         src/detection/theme/theme_nosupport.c
-        src/detection/tpm/tpm_nosupport.c
+        src/detection/tpm/tpm_apple.c
         src/detection/uptime/uptime_bsd.c
         src/detection/users/users_linux.c
         src/detection/wallpaper/wallpaper_apple.m
@@ -965,7 +964,7 @@ elseif(WIN32)
     list(APPEND LIBFASTFETCH_SRC
         src/common/io/io_windows.c
         src/common/netif/netif_windows.c
-        src/common/networking_windows.c
+        src/common/networking/networking_windows.c
         src/common/processing_windows.c
         src/detection/battery/battery_windows.c
         src/detection/bios/bios_windows.c
@@ -1034,13 +1033,14 @@ elseif(WIN32)
         src/util/windows/version.c
         src/util/platform/FFPlatform_windows.c
         src/util/binary_windows.c
+        src/util/debug_windows.c
     )
 elseif(SunOS)
     list(APPEND LIBFASTFETCH_SRC
         src/common/dbus.c
         src/common/io/io_unix.c
         src/common/netif/netif_bsd.c
-        src/common/networking_linux.c
+        src/common/networking/networking_linux.c
         src/common/processing_linux.c
         src/detection/battery/battery_nosupport.c
         src/detection/bios/bios_windows.c
@@ -1121,7 +1121,7 @@ elseif(Haiku)
         src/common/dbus.c
         src/common/io/io_unix.c
         src/common/netif/netif_haiku.c
-        src/common/networking_linux.c
+        src/common/networking/networking_linux.c
         src/common/processing_linux.c
         src/detection/battery/battery_haiku.c
         src/detection/bios/bios_windows.c
@@ -1478,10 +1478,6 @@ else()
         "GL"
     )
 endif()
-ff_lib_enable(OSMESA
-    "osmesa"
-    "OSMesa"
-)
 ff_lib_enable(OPENCL
     "OpenCL"
     "OpenCL"
@@ -1575,7 +1571,6 @@ elseif(APPLE)
         PRIVATE "-F /System/Library/PrivateFrameworks"
         PRIVATE "-weak_framework DisplayServices"
         PRIVATE "-weak_framework MediaRemote"
-        PRIVATE "-weak_framework Apple80211"
     )
 elseif(WIN32)
     target_link_libraries(libfastfetch
@@ -1594,6 +1589,7 @@ elseif(WIN32)
         PRIVATE "cfgmgr32"
         PRIVATE "winbrand"
         PRIVATE "propsys"
+        PRIVATE "secur32"
     )
 elseif(FreeBSD)
     target_link_libraries(libfastfetch

@@ -26,7 +26,7 @@ static void formatKey(const FFLocalIpOptions* options, FFLocalIpResult* ip, uint
         ffStrbufClear(key);
         FF_PARSE_FORMAT_STRING_CHECKED(key, &options->moduleArgs.key, ((FFformatarg[]) {
             FF_FORMAT_ARG(index, "index"),
-            FF_FORMAT_ARG(ip->name, "name"),
+            FF_FORMAT_ARG(ip->name, "ifname"),
             FF_FORMAT_ARG(ip->mac, "mac"),
             FF_FORMAT_ARG(options->moduleArgs.keyIcon, "icon"),
         }));
@@ -525,7 +525,7 @@ void ffInitLocalIpOptions(FFLocalIpOptions* options)
     ffOptionInitModuleArg(&options->moduleArgs, "󰩟");
 
     options->showType = FF_LOCALIP_TYPE_IPV4_BIT | FF_LOCALIP_TYPE_PREFIX_LEN_BIT
-        #if !__ANDROID__ /*Permission denied*/ && !__OpenBSD__ /*Report invalid argument for some reason*/ && !__DragonFly__ /*Doesn't work*/
+        #if !__ANDROID__ /*Permission denied*/
             | FF_LOCALIP_TYPE_DEFAULT_ROUTE_ONLY_BIT
         #endif
     ;
