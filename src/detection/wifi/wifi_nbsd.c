@@ -2,11 +2,21 @@
 #include "common/io/io.h"
 #include "util/stringUtils.h"
 
+#define COMPAT_FREEBSD_NET80211 1
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/if_media.h>
+#include <net80211/ieee80211.h>
 #include <net80211/ieee80211_ioctl.h>
+
+// ieee80211 header of NetBSD is full of mess. Add compatibility macros from FreeBSD
+#undef IEEE80211_IS_CHAN_ANYG
+#define IEEE80211_IS_CHAN_ANYG(x) (IEEE80211_IS_CHAN_PUREG(x) || IEEE80211_IS_CHAN_G(x))
+#undef IEEE80211_IS_CHAN_HT
+#define IEEE80211_IS_CHAN_HT(x) (((x)->ic_flags & IEEE80211_CHAN_HT) != 0)
+#undef IEEE80211_IS_CHAN_VHT
+#define IEEE80211_IS_CHAN_VHT(x) (((x)->ic_flags & IEEE80211_CHAN_VHT) != 0)
 
 const char* ffDetectWifi(FFlist* result)
 {
@@ -23,7 +33,7 @@ const char* ffDetectWifi(FFlist* result)
 
     for(struct if_nameindex* i = infs; !(i->if_index == 0 && i->if_name == NULL); ++i)
     {
-        if (!ffStrStartsWith(i->if_name, "wlan")) {
+        if (!ffStrStartsWith(i->if_name, "iwm")) {
             continue;
         }
 
@@ -75,12 +85,13 @@ const char* ffDetectWifi(FFlist* result)
         }
 
         struct ieee80211_channel curchan = {};
-        ireq.i_type = IEEE80211_IOC_CURCHAN;
+        ireq.i_type = IEEE80211_IOC_CHANNEL;
         ireq.i_data = &curchan;
         ireq.i_len = sizeof(curchan);
 
         if (ioctl(sock, SIOCG80211, &ireq) >= 0) {
-            item->conn.channel = curchan.ic_ieee;
+            // item->conn.channel = curchan.ic_ieee; // No ic_ieee in NetBSD
+            item->conn.channel = ffWifiFreqToChannel(curchan.ic_freq);
             item->conn.frequency = curchan.ic_freq;
 
             if (IEEE80211_IS_CHAN_FHSS(&curchan))
@@ -91,11 +102,12 @@ const char* ffDetectWifi(FFlist* result)
                 ffStrbufSetStatic(&item->conn.protocol, "802.11b");
             if (IEEE80211_IS_CHAN_ANYG(&curchan))
                 ffStrbufSetStatic(&item->conn.protocol, "802.11g");
+
             if (IEEE80211_IS_CHAN_HT(&curchan))
                 ffStrbufSetStatic(&item->conn.protocol, "802.11n (Wi-Fi 4)");
             if (IEEE80211_IS_CHAN_VHT(&curchan))
                 ffStrbufSetStatic(&item->conn.protocol, "802.11ac (Wi-Fi 5)");
-            #ifdef IEEE80211_IS_CHAN_HE // for future use
+            #ifdef IEEE80211_IS_CHAN_HE
             if (IEEE80211_IS_CHAN_HE(&curchan))
                 ffStrbufSetStatic(&item->conn.protocol, "802.11ax (Wi-Fi 6)");
             #endif
@@ -113,8 +125,12 @@ const char* ffDetectWifi(FFlist* result)
         if (ioctl(sock, SIOCG80211, &ireq) >= 0) {
             struct ieee80211req_sta_info* sta = stareq.req.info;
             if (sta->isi_len != 0) {
-                item->conn.signalQuality = (sta->isi_rssi >= -50 ? 100 : sta->isi_rssi <= -100 ? 0 : (sta->isi_rssi + 100) * 2);
-                item->conn.rxRate = sta->isi_txmbps * 0.5;
+                int8_t rssi = (int8_t) sta->isi_rssi; // This is strange
+                item->conn.signalQuality = (rssi >= -50 ? 100 : rssi <= -100 ? 0 : (rssi + 100) * 2);
+
+                if (sta->isi_txrate) {
+                    item->conn.txRate = (double)sta->isi_txrate / 2.0;
+                }
             }
         }
 
