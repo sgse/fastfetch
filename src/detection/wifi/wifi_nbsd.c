@@ -94,23 +94,23 @@ const char* ffDetectWifi(FFlist* result)
             item->conn.channel = ffWifiFreqToChannel(curchan.ic_freq);
             item->conn.frequency = curchan.ic_freq;
 
-            if (IEEE80211_IS_CHAN_FHSS(&curchan))
-                ffStrbufSetStatic(&item->conn.protocol, "802.11 (FHSS)");
-            if (IEEE80211_IS_CHAN_A(&curchan))
-                ffStrbufSetStatic(&item->conn.protocol, "802.11a");
-            if (IEEE80211_IS_CHAN_B(&curchan))
-                ffStrbufSetStatic(&item->conn.protocol, "802.11b");
-            if (IEEE80211_IS_CHAN_ANYG(&curchan))
-                ffStrbufSetStatic(&item->conn.protocol, "802.11g");
-
-            if (IEEE80211_IS_CHAN_HT(&curchan))
-                ffStrbufSetStatic(&item->conn.protocol, "802.11n (Wi-Fi 4)");
-            if (IEEE80211_IS_CHAN_VHT(&curchan))
-                ffStrbufSetStatic(&item->conn.protocol, "802.11ac (Wi-Fi 5)");
-            #ifdef IEEE80211_IS_CHAN_HE
+            #ifdef IEEE80211_IS_CHAN_HE // for future use
             if (IEEE80211_IS_CHAN_HE(&curchan))
                 ffStrbufSetStatic(&item->conn.protocol, "802.11ax (Wi-Fi 6)");
+            else
             #endif
+            if (IEEE80211_IS_CHAN_VHT(&curchan))
+                ffStrbufSetStatic(&item->conn.protocol, "802.11ac (Wi-Fi 5)");
+            else if (IEEE80211_IS_CHAN_HT(&curchan))
+                ffStrbufSetStatic(&item->conn.protocol, "802.11n (Wi-Fi 4)");
+            else if (IEEE80211_IS_CHAN_ANYG(&curchan))
+                ffStrbufSetStatic(&item->conn.protocol, "802.11g");
+            else if (IEEE80211_IS_CHAN_B(&curchan))
+                ffStrbufSetStatic(&item->conn.protocol, "802.11b");
+            else if (IEEE80211_IS_CHAN_A(&curchan))
+                ffStrbufSetStatic(&item->conn.protocol, "802.11a");
+            else if (IEEE80211_IS_CHAN_FHSS(&curchan))
+                ffStrbufSetStatic(&item->conn.protocol, "802.11 (FHSS)");
         }
 
         union {
@@ -125,7 +125,7 @@ const char* ffDetectWifi(FFlist* result)
         if (ioctl(sock, SIOCG80211, &ireq) >= 0) {
             struct ieee80211req_sta_info* sta = stareq.req.info;
             if (sta->isi_len != 0) {
-                int8_t rssi = (int8_t) sta->isi_rssi; // This is strange
+                int8_t rssi = (int8_t) sta->isi_rssi; // Strangely, `sta->isi_rssi` is unsigned
                 item->conn.signalQuality = (rssi >= -50 ? 100 : rssi <= -100 ? 0 : (rssi + 100) * 2);
 
                 if (sta->isi_txrate) {
