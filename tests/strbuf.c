@@ -371,6 +371,22 @@ int main(void)
     VERIFY(strbuf.allocated > 0);
     ffStrbufDestroy(&strbuf);
 
+    //ffStrbufCreateStatic / TrimSpace
+    ffStrbufInitStatic(&strbuf, "\n TEST\n ");
+    ffStrbufTrimSpace(&strbuf);
+    VERIFY(strbuf.length == 4);
+    VERIFY(strbuf.allocated > 0);
+    VERIFY(ffStrbufEqualS(&strbuf, "TEST"));
+    ffStrbufDestroy(&strbuf);
+
+    //ffStrbufCreate / TrimSpace
+    ffStrbufInitS(&strbuf, "\n TEST\n ");
+    ffStrbufTrimSpace(&strbuf);
+    VERIFY(strbuf.length == 4);
+    VERIFY(strbuf.allocated > 0);
+    VERIFY(ffStrbufEqualS(&strbuf, "TEST"));
+    ffStrbufDestroy(&strbuf);
+
     //ffStrbufEnsureFixedLengthFree / empty buffer
     ffStrbufInit(&strbuf);
     ffStrbufEnsureFixedLengthFree(&strbuf, 10);
@@ -647,6 +663,61 @@ int main(void)
         VERIFY(ffStrbufMatchSeparatedS(&strbuf, ":abc:", ':') == true);
         VERIFY(ffStrbufMatchSeparatedS(&strbuf, "abc:", ':') == true);
         VERIFY(ffStrbufMatchSeparatedS(&strbuf, ":abc", ':') == true);
+    }
+
+    {
+        ffStrbufSetStatic(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 0, 1); // start, end
+        VERIFY(ffStrbufEqualS(&strbuf, "a"));
+
+        ffStrbufSetStatic(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 1, 1);
+        VERIFY(ffStrbufEqualS(&strbuf, ""));
+
+        ffStrbufSetStatic(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 2, 1);
+        VERIFY(ffStrbufEqualS(&strbuf, ""));
+
+        ffStrbufSetStatic(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 2, 3);
+        VERIFY(ffStrbufEqualS(&strbuf, "c"));
+
+        ffStrbufSetStatic(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 0, 3);
+        VERIFY(ffStrbufEqualS(&strbuf, "abc"));
+    }
+
+    {
+        ffStrbufSetS(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 0, 1); // start, end
+        VERIFY(ffStrbufEqualS(&strbuf, "a"));
+
+        ffStrbufSetS(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 1, 1);
+        VERIFY(ffStrbufEqualS(&strbuf, ""));
+
+        ffStrbufSetS(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 2, 1);
+        VERIFY(ffStrbufEqualS(&strbuf, ""));
+
+        ffStrbufSetS(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 2, 3);
+        VERIFY(ffStrbufEqualS(&strbuf, "c"));
+
+        ffStrbufSetS(&strbuf, "abc");
+        ffStrbufSubstr(&strbuf, 0, 3);
+        VERIFY(ffStrbufEqualS(&strbuf, "abc"));
+
+        ffStrbufDestroy(&strbuf);
+    }
+
+    {
+        ffStrbufAppendUtf32CodePoint(&strbuf, 0x6587);
+        ffStrbufAppendUtf32CodePoint(&strbuf, 0x6cc9);
+        ffStrbufAppendUtf32CodePoint(&strbuf, 0x9a7f);
+        VERIFY(ffStrbufEqualS(&strbuf, u8"文泉驿"));
+
+        ffStrbufDestroy(&strbuf);
     }
 
     //Success

@@ -55,6 +55,9 @@ static bool isPhysicalDevice(const struct mntent* device)
         ffStrStartsWith(device->mnt_fsname + 5, "fd")      //Ignore fd devices
     ) return false;
 
+    if (ffStrStartsWith(device->mnt_dir, "/bedrock/")) // Ignore Bedrock Linux subvolumes
+        return false;
+
     struct stat deviceStat;
     if(stat(device->mnt_fsname, &deviceStat) != 0)
         return false;
@@ -283,7 +286,7 @@ const char* ffDetectDisksImpl(FFDiskOptions* options, FFlist* disks)
 
     while((device = getmntent(mountsFile)))
     {
-        if (__builtin_expect(options->folders.length, 0))
+        if (__builtin_expect(options->folders.length > 0, false))
         {
             if (!ffDiskMatchMountpoint(&options->folders, device->mnt_dir))
                 continue;

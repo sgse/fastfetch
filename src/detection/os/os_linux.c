@@ -291,16 +291,25 @@ FF_MAYBE_UNUSED static bool detectDebianDerived(FFOSResult* result)
     return false;
 }
 
-static void detectOS(FFOSResult* os)
+FF_MAYBE_UNUSED static bool detectFedoraVariant(FFOSResult* result)
 {
-    #ifdef FF_CUSTOM_OS_RELEASE_PATH
-    parseOsRelease(FF_STR(FF_CUSTOM_OS_RELEASE_PATH), os);
-        #ifdef FF_CUSTOM_LSB_RELEASE_PATH
-        parseLsbRelease(FF_STR(FF_CUSTOM_LSB_RELEASE_PATH), os);
-        #endif
-    return;
-    #endif
+    if (ffStrbufEqualS(&result->variantID, "coreos")
+        || ffStrbufEqualS(&result->variantID, "kinoite")
+        || ffStrbufEqualS(&result->variantID, "sericea")
+        || ffStrbufEqualS(&result->variantID, "silverblue"))
+    {
+        ffStrbufAppendC(&result->id, '-');
+        ffStrbufAppend(&result->id, &result->variantID);
+        ffStrbufSetStatic(&result->idLike, "fedora");
+        return true;
+    }
+    return false;
+}
 
+static bool detectBedrock(FFOSResult* os)
+{
+    const char* bedrockRestrict = getenv("BEDROCK_RESTRICT");
+    if(bedrockRestrict && bedrockRestrict[0] == '1') return false;
     if(parseOsRelease(FASTFETCH_TARGET_DIR_ROOT "/bedrock" FASTFETCH_TARGET_DIR_ETC "/bedrock-release", os))
     {
         if(os->id.length == 0)
@@ -313,8 +322,23 @@ static void detectOS(FFOSResult* os)
             ffStrbufAppendS(&os->prettyName, "Bedrock Linux");
 
         parseOsRelease("/bedrock" FASTFETCH_TARGET_DIR_ETC "/os-release", os);
-        return;
+        return true;
     }
+    return false;
+}
+
+static void detectOS(FFOSResult* os)
+{
+    #ifdef FF_CUSTOM_OS_RELEASE_PATH
+    parseOsRelease(FF_STR(FF_CUSTOM_OS_RELEASE_PATH), os);
+        #ifdef FF_CUSTOM_LSB_RELEASE_PATH
+        parseLsbRelease(FF_STR(FF_CUSTOM_LSB_RELEASE_PATH), os);
+        #endif
+    return;
+    #endif
+
+    if (detectBedrock(os))
+        return;
 
     // Refer: https://gist.github.com/natefoo/814c5bf936922dad97ff
 
@@ -341,13 +365,15 @@ void ffDetectOSImpl(FFOSResult* os)
     detectOS(os);
 
     #ifdef __linux__
-    if(ffStrbufIgnCaseEqualS(&os->id, "ubuntu"))
+    if(ffStrbufEqualS(&os->id, "ubuntu"))
         getUbuntuFlavour(os);
-    else if(ffStrbufIgnCaseEqualS(&os->id, "debian"))
+    else if(ffStrbufEqualS(&os->id, "debian"))
     {
         if (!detectDebianDerived(os))
             getDebianVersion(os);
     }
+    else if(ffStrbufEqualS(&os->id, "fedora"))
+        detectFedoraVariant(os);
     else if(ffStrbufEqualS(&os->id, "linuxmint"))
     {
         if (ffStrbufEqualS(&os->name, "LMDE"))

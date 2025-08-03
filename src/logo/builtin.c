@@ -11,16 +11,6 @@ const FFlogo ffLogoUnknown = {
 };
 
 static const FFlogo A[] = {
-    //Ada
-    {
-        .names = {"Ada"},
-        .lines = FASTFETCH_DATATEXT_LOGO_ADA,
-        .colors = {
-            FF_COLOR_FG_256 "15",
-            FF_COLOR_FG_256 "14",
-            FF_COLOR_FG_256 "16",
-        }
-    },
     // Adélie
     {
         .names = {"Adélie", "Adelie"},
@@ -38,6 +28,15 @@ static const FFlogo A[] = {
         .colors = {
             FF_COLOR_FG_CYAN,
             FF_COLOR_FG_CYAN,
+        },
+    },
+    // Aeon
+    {
+        .names = {"Aeon"},
+        .lines = FASTFETCH_DATATEXT_LOGO_AEON,
+        .colors = {
+            FF_COLOR_FG_256 "36",
+            FF_COLOR_FG_256 "36",
         },
     },
     // Afterglow
@@ -699,6 +698,15 @@ static const FFlogo A[] = {
             FF_COLOR_FG_MAGENTA,
             FF_COLOR_FG_RED,
             FF_COLOR_FG_WHITE,
+        },
+    },
+    // AxOS
+    {
+        .names = {"AxOS"},
+        .lines = FASTFETCH_DATATEXT_LOGO_AXOS,
+        .colors = {
+            FF_COLOR_FG_RGB "222;6;255",
+            FF_COLOR_FG_RGB "222;6;255",
         },
     },
     // Azos
@@ -1615,16 +1623,6 @@ static const FFlogo E[] = {
         .colorKeys = FF_COLOR_FG_BLUE,
         .colorTitle = FF_COLOR_FG_DEFAULT,
     },
-    // Evolinx
-    {
-        .names = {"Evolinx"},
-        .lines = FASTFETCH_DATATEXT_LOGO_EVOLINX,
-        .colors = {
-            FF_COLOR_FG_BLUE,
-        },
-        .colorKeys = FF_COLOR_FG_BLUE,
-        .colorTitle = FF_COLOR_FG_BLUE,
-    },
     // EvolutionOS
     {
         .names = {"EvolutionOS"},
@@ -1771,8 +1769,7 @@ static const FFlogo F[] = {
     },
     // FedoraSilverblue
     {
-        .names = {"Fedora_silverblue", "fedora-silverblue"},
-        .type = FF_LOGO_LINE_TYPE_ALTER_BIT,
+        .names = {"Fedora-Silverblue"},
         .lines = FASTFETCH_DATATEXT_LOGO_FEDORA_SILVERBLUE,
         .colors = {
             FF_COLOR_FG_BLUE,
@@ -1784,8 +1781,7 @@ static const FFlogo F[] = {
     },
     // FedoraKinoite
     {
-        .names = {"Fedora_kinoite", "fedora-kinoite"},
-        .type = FF_LOGO_LINE_TYPE_ALTER_BIT,
+        .names = {"Fedora-Kinoite"},
         .lines = FASTFETCH_DATATEXT_LOGO_FEDORA_KINOITE,
         .colors = {
             FF_COLOR_FG_BLUE,
@@ -1796,8 +1792,7 @@ static const FFlogo F[] = {
     },
     // FedoraSericea
     {
-        .names = {"Fedora_sericea", "fedora-sericea"},
-        .type = FF_LOGO_LINE_TYPE_ALTER_BIT,
+        .names = {"Fedora-Sericea"},
         .lines = FASTFETCH_DATATEXT_LOGO_FEDORA_SERICEA,
         .colors = {
             FF_COLOR_FG_BLUE,
@@ -1808,8 +1803,7 @@ static const FFlogo F[] = {
     },
     // FedoraCoreOS
     {
-        .names = {"Fedora_coreos", "fedora-coreos"},
-        .type = FF_LOGO_LINE_TYPE_ALTER_BIT,
+        .names = {"Fedora-CoreOS"},
         .lines = FASTFETCH_DATATEXT_LOGO_FEDORA_COREOS,
         .colors = {
             FF_COLOR_FG_BLUE,
@@ -3107,6 +3101,16 @@ static const FFlogo M[] = {
             FF_COLOR_FG_WHITE,
         },
         .colorKeys = FF_COLOR_FG_LIGHT_BLACK,
+        .colorTitle = FF_COLOR_FG_DEFAULT,
+    },
+    // Minimal System
+    {
+        .names = {"Minimal_System"},
+        .lines = FASTFETCH_DATATEXT_LOGO_MINIMAL,
+        .colors = {
+            FF_COLOR_FG_RED,
+        },
+        .colorKeys = FF_COLOR_FG_CYAN,
         .colorTitle = FF_COLOR_FG_DEFAULT,
     },
     // Minix
@@ -5390,6 +5394,16 @@ static const FFlogo X[] = {
             FF_COLOR_FG_256 "25",
             FF_COLOR_FG_DEFAULT,
         },
+    },
+    //Xray_OS
+    {
+        .names = {"Xray_OS"},
+        .lines = FASTFETCH_DATATEXT_LOGO_XRAY_OS,
+        .colors = {
+            FF_COLOR_FG_256 "15",
+            FF_COLOR_FG_256 "14",
+            FF_COLOR_FG_256 "16",
+        }
     },
     // LAST
     {},
