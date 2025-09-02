@@ -91,7 +91,7 @@ void printSwap(FFSwapOptions* options, uint8_t index, FFSwapResult* storage)
     }
 }
 
-void ffPrintSwap(FFSwapOptions* options)
+bool ffPrintSwap(FFSwapOptions* options)
 {
     FF_LIST_AUTO_DESTROY result = ffListCreate(sizeof(FFSwapResult));
     const char* error = ffDetectSwap(&result);
@@ -99,7 +99,7 @@ void ffPrintSwap(FFSwapOptions* options)
     if(error)
     {
         ffPrintError(FF_SWAP_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
 
     if (options->separate)
@@ -129,6 +129,8 @@ void ffPrintSwap(FFSwapOptions* options)
     {
         ffStrbufDestroy(&storage->name);
     }
+
+    return true;
 }
 
 void ffParseSwapJsonObject(FFSwapOptions* options, yyjson_val* module)
@@ -155,15 +157,13 @@ void ffParseSwapJsonObject(FFSwapOptions* options, yyjson_val* module)
 
 void ffGenerateSwapJsonConfig(FFSwapOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroySwapOptions))) FFSwapOptions defaultOptions;
-    ffInitSwapOptions(&defaultOptions);
+    ffPercentGenerateJsonConfig(doc, module, options->percent);
 
-    ffPercentGenerateJsonConfig(doc, module, defaultOptions.percent, options->percent);
-
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
+    yyjson_mut_obj_add_bool(doc, module, "separate", options->separate);
 }
 
-void ffGenerateSwapJsonResult(FF_MAYBE_UNUSED FFSwapOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateSwapJsonResult(FF_MAYBE_UNUSED FFSwapOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FF_LIST_AUTO_DESTROY result = ffListCreate(sizeof(FFSwapResult));
     const char* error = ffDetectSwap(&result);
@@ -171,7 +171,7 @@ void ffGenerateSwapJsonResult(FF_MAYBE_UNUSED FFSwapOptions* options, yyjson_mut
     if(error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -187,11 +187,27 @@ void ffGenerateSwapJsonResult(FF_MAYBE_UNUSED FFSwapOptions* options, yyjson_mut
     {
         ffStrbufDestroy(&storage->name);
     }
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitSwapOptions(FFSwapOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "󰓡");
+    options->percent = (FFPercentageModuleConfig) { 50, 80, 0 };
+    options->separate = false;
+}
+
+void ffDestroySwapOptions(FFSwapOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffSwapModuleInfo = {
     .name = FF_SWAP_MODULE_NAME,
     .description = "Print swap (paging file) space usage",
+    .initOptions = (void*) ffInitSwapOptions,
+    .destroyOptions = (void*) ffDestroySwapOptions,
     .parseJsonObject = (void*) ffParseSwapJsonObject,
     .printModule = (void*) ffPrintSwap,
     .generateJsonResult = (void*) ffGenerateSwapJsonResult,
@@ -204,16 +220,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Name", "name"},
     }))
 };
-
-void ffInitSwapOptions(FFSwapOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "󰓡");
-    options->percent = (FFPercentageModuleConfig) { 50, 80, 0 };
-    options->separate = false;
-}
-
-void ffDestroySwapOptions(FFSwapOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

@@ -76,7 +76,7 @@ static void printZpool(FFZpoolOptions* options, FFZpoolResult* result, uint8_t i
     }
 }
 
-void ffPrintZpool(FFZpoolOptions* options)
+bool ffPrintZpool(FFZpoolOptions* options)
 {
     FF_LIST_AUTO_DESTROY results = ffListCreate(sizeof(FFZpoolResult));
 
@@ -85,12 +85,12 @@ void ffPrintZpool(FFZpoolOptions* options)
     if (error)
     {
         ffPrintError(FF_ZPOOL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
     if(results.length == 0)
     {
         ffPrintError(FF_ZPOOL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", "No zpool found");
-        return;
+        return false;
     }
 
     for(uint32_t i = 0; i < results.length; i++)
@@ -105,6 +105,7 @@ void ffPrintZpool(FFZpoolOptions* options)
         ffStrbufDestroy(&result->name);
         ffStrbufDestroy(&result->state);
     }
+    return true;
 }
 
 void ffParseZpoolJsonObject(FFZpoolOptions* options, yyjson_val* module)
@@ -125,15 +126,12 @@ void ffParseZpoolJsonObject(FFZpoolOptions* options, yyjson_val* module)
 
 void ffGenerateZpoolJsonConfig(FFZpoolOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyZpoolOptions))) FFZpoolOptions defaultOptions;
-    ffInitZpoolOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
-
-    ffPercentGenerateJsonConfig(doc, module, defaultOptions.percent, options->percent);
+    ffPercentGenerateJsonConfig(doc, module, options->percent);
 }
 
-void ffGenerateZpoolJsonResult(FF_MAYBE_UNUSED FFZpoolOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateZpoolJsonResult(FF_MAYBE_UNUSED FFZpoolOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FF_LIST_AUTO_DESTROY results = ffListCreate(sizeof(FFZpoolResult));
 
@@ -141,7 +139,7 @@ void ffGenerateZpoolJsonResult(FF_MAYBE_UNUSED FFZpoolOptions* options, yyjson_m
     if (error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -154,7 +152,10 @@ void ffGenerateZpoolJsonResult(FF_MAYBE_UNUSED FFZpoolOptions* options, yyjson_m
         yyjson_mut_obj_add_uint(doc, obj, "used", zpool->used);
         yyjson_mut_obj_add_uint(doc, obj, "total", zpool->total);
         yyjson_mut_obj_add_uint(doc, obj, "version", zpool->version);
-        yyjson_mut_obj_add_real(doc, obj, "fragmentation", zpool->fragmentation);
+        if (zpool->fragmentation != -DBL_MAX)
+            yyjson_mut_obj_add_real(doc, obj, "fragmentation", zpool->fragmentation);
+        else
+            yyjson_mut_obj_add_null(doc, obj, "fragmentation");
     }
 
     FF_LIST_FOR_EACH(FFZpoolResult, zpool, results)
@@ -162,11 +163,25 @@ void ffGenerateZpoolJsonResult(FF_MAYBE_UNUSED FFZpoolOptions* options, yyjson_m
         ffStrbufDestroy(&zpool->name);
         ffStrbufDestroy(&zpool->state);
     }
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitZpoolOptions(FFZpoolOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "󱑛");
+    options->percent = (FFPercentageModuleConfig) { 50, 80, 0 };
+}
+
+void ffDestroyZpoolOptions(FFZpoolOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffZpoolModuleInfo = {
     .name = FF_ZPOOL_MODULE_NAME,
     .description = "Print ZFS storage pools",
+    .initOptions = (void*) ffInitZpoolOptions,
+    .destroyOptions = (void*) ffDestroyZpoolOptions,
     .parseJsonObject = (void*) ffParseZpoolJsonObject,
     .printModule = (void*) ffPrintZpool,
     .generateJsonResult = (void*) ffGenerateZpoolJsonResult,
@@ -182,15 +197,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Fragmentation percentage bar", "fragmentation-percentage-bar"},
     }))
 };
-
-void ffInitZpoolOptions(FFZpoolOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "󱑛");
-    options->percent = (FFPercentageModuleConfig) { 50, 80, 0 };
-}
-
-void ffDestroyZpoolOptions(FFZpoolOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

@@ -1,17 +1,124 @@
-# WIP
+# 2.51.1
+
+Bugfixes:
+* Fix building on macOS 14 or older; no functional changes (CPU, macOS)
+
+# 2.51.0
 
 Changes:
-* Percent bar config `display.bar.*` options have been replaced with a more organized, nested object structure.
+* Fastfetch now requires [yyjson 0.12](https://github.com/ibireme/yyjson/releases/tag/0.12.0) to build when using `-DENABLE_SYSTEM_YYJSON=ON`.
+* The Disk module no longer shows hyperlink mountpoints by default, which cause issues on some real consoles (Disk)
+    * Instead, the custom key for the Disk module now supports `{mountpoint-link}` and `{name-link}` to show hyperlinks for mountpoints and names. For example, `{ "type": "disk", "key": "Disk ({mountpoint-link})" }` can be used to restore the old behavior.
+
+Features:
+* Adds `succeeded` module condition to JSONC config. When set to `false`, the module will only run if the last module failed (#1908)
+    * Useful for displaying fallback placeholders when a module fails. For example:
+```jsonc
+{
+    "host",
+    // If fastfetch fails to detect host info, display "DIY PC" instead
+    {
+        "type": "custom",
+        "condition": {
+            "succeeded": false
+        },
+        "key": "Host",
+        "format": "DIY PC"
+    }
+}
+```
+* By upgrading to yyjson 0.12, fastfetch now adds [JSON5](https://json5.org/) format support for configuration files (#1907)
+    * [JSON5](https://json5.org/) is a superset of JSONC that allows unquoted keys, single quotes, multi-line strings, etc., and is fully compatible with JSONC and strict JSON.
+    * To use JSON5, simply name your config file with a `.json5` extension. The `.jsonc` extension is still supported and used as the default extension for better IDE syntax highlighting support.
+* Fastfetch has been ported to [`GNU/Hurd`](https://www.gnu.org/software/hurd/) (#1895)
+    * Thanks to the efforts of @yelninei!
+* Built-in logos now honor `logo.width` (#1905)
+    * When its value is larger than the actual logo width, the logo will be padded with spaces to the right
+* Adds Trinity DE version detection (#1917, DE, Linux)
+* Adds formatted free and available disk size fields (#1929, Disk)
+    * `{size-free}`: free size of the disk
+    * `{size-available}`: available size of the disk
+    * See [askubuntu.com](https://askubuntu.com/questions/249387/df-h-used-space-avail-free-space-is-less-than-the-total-size-of-home) for the difference between free and available size
+* Adds [x86_64 micro-architecture level](https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels) detection (#1928, CPU)
+    * Useful when installing software that requires or is optimized for specific CPU features. E.g., [CachyOS](https://wiki.cachyos.org/features/optimized_repos/)
+    * Exposed via `{march}` in custom format
+* Adds [Aarch64 micro-architecture level](https://en.wikipedia.org/wiki/AArch64#Profiles) detection (CPU)
+    * Supported on Linux (including Android), macOS and Windows
+    * This is not fully accurate because there are many optional features across different levels, and not all levels are detectable.
+    * Exposed via `{march}` in custom format.
+* Adds shepherd detection support (InitSystem, Linux)
+
+Bugfixes:
+* Refines GPU detection logic to correctly handle virtual devices (#1920, GPU, Windows)
+* Fixes possible default route detection failure when the route table is very large (#1919, LocalIP, Linux)
+* Fastfetch now correctly parses `hwdata/pci.ids` files alongside `pciids/pci.ids` on FreeBSD when detecting GPU names (#1924, GPU, FreeBSD)
+* Fixes twin WM detection (#1917, WM, Linux)
+* Various fixes for Android support
+    * Corrects WM name for Android (WM, Android)
+    * Fixes battery temperature detection when running in ADB (Battery, Android)
+    * Adds CPU and GPU temperature detection support (CPU, Android)
+
+Logos:
+* Adds AerynOS
+
+# 2.50.2
+
+Bugfixes:
+* Fixes linglong package detection V2 (#1903, Packages, Linux)
+* Fixes building with `-DENABLE_SYSTEM_YYJSON=ON` (#1904)
+* Fixes `showMac` does not honor `defaultRouteOnly` (#1902, LocalIP, Linux)
+* Fixes failing to acquire default route on Linux in certain cases (#1902, LocalIP, Linux)
+
+# 2.50.1
+
+Bugfixes:
+* Fixes percentage bar not displaying correctly in certain cases
+* Fixes linglong package detection on Debian 13 (#1899, Packages, Linux)
+
+# 2.50.0
+
+Changes:
+* Keys in JSON configuration files are now case-sensitive, as stated in v2.49.0.
+    * This is a breaking change, but it should not affect most users as long as your config file passes JSON schema validation.
+* All module config flags have been removed, as stated in v2.49.0.
+    * To configure modules via the command line, use: `echo '{"modules": [{"type":"custom","format":"Hello Fastfetch!"}]}' | fastfetch -c -`.
+* The percent bar config `display.bar.*` options have been replaced with a more organized, nested object structure.
     * `display.bar.charElapsed` has been renamed to `display.bar.char.elapsed`.
     * `display.bar.charTotal` has been renamed to `display.bar.char.total`.
     * `display.bar.borderLeft` has been renamed to `display.bar.border.left`.
     * `display.bar.borderRight` has been renamed to `display.bar.border.right`.
+* The undocumented flag `--load-config` has been removed.
+    * Use `--config` or `-c` instead.
+* Flashfetch, a simplified fastfetch variant that used a hardcoded module list with direct function calls to reduce startup overhead, has been changed to a version that aims to match neofetch's behavior as closely as possible, for demonstration purposes.
+    * Flashfetch is intended to be built from source (like [st](https://st.suckless.org/)). We do not provide prebuilt binaries in distributions.
 
 Features:
-* Add `display.bar.border.{leftElapsed,rightElapsed}` for using border as parts of bar content. (#1875)
+* Added support for reading JSON config from stdin using `--config -` or `-c -`.
+* Added `display.bar.border.{leftElapsed,rightElapsed}` for using the border as part of the bar content. (#1875)
     * `display.bar.border: null` has been added as a shorthand to disable bar borders.
-* Add `display.bar.color.{elapsed,total,border}` to customize the color of the elapsed, total and border sections of the percent bar.
+* Added `display.bar.color.{elapsed,total,border}` to customize the color of the elapsed, total, and border sections of the percent bar.
     * `display.bar.color: null` has been added as a shorthand to disable bar colors.
+* Improved Bedrock Linux detection (#1881, OS / Disk, Linux)
+* Added the command flag `--gen-config-full`, which generates a JSON config file containing all optional module options.
+* Improved the default IP address display when `localip.showAllIPs` is not set (LocalIP)
+    * For IPv4, the preferred source address (if detected) is shown.
+    * For IPv6, the first GUA or ULA that is not deprecated or temporary is shown.
+* Added support for interface speed detection on SunOS (LocalIP, SunOS)
+* Added detection support for Xlibre (#1888, WM, Linux)
+* Improved the accuracy of color detection (Cursor, macOS)
+* Improved the proformance of `Nix` package manager detection on macOS by porting optimizations form Linux port (#1893, Packages, macOS)
+
+Bugfixes:
+* Fixed custom object inheriting a key from the previous custom object if the key is blank (#1477)
+* Fixed a possible segfault when parsing color strings in the JSON config (#1878)
+* Fixed GPU driver detection when DRM is used (GPU, FreeBSD)
+* Fixed default route detection on DragonFly BSD (LocalIP, DFBSD)
+* Fixed lliurex detection (#1882, OS, Linux)
+* Fixed compatibility with `-ffast-math` (#1894)
+* Fixed physical GPU sometimes being ignored (#1896, GPU, Windows)
+
+Logos:
+* Added ObsidianOS (#1890)
 
 # 2.49.0
 

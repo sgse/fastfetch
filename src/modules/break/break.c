@@ -2,10 +2,11 @@
 #include "logo/logo.h"
 #include "modules/break/break.h"
 
-void ffPrintBreak(FF_MAYBE_UNUSED FFBreakOptions* options)
+bool ffPrintBreak(FF_MAYBE_UNUSED FFBreakOptions* options)
 {
     ffLogoPrintLine();
     putchar('\n');
+    return true;
 }
 
 void ffParseBreakJsonObject(FF_MAYBE_UNUSED FFBreakOptions* options, FF_MAYBE_UNUSED yyjson_val* module)
@@ -21,18 +22,19 @@ void ffParseBreakJsonObject(FF_MAYBE_UNUSED FFBreakOptions* options, FF_MAYBE_UN
     }
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
-    .name = FF_BREAK_MODULE_NAME,
-    .description = "Print a empty line",
-    .parseJsonObject = (void*) ffParseBreakJsonObject,
-    .printModule = (void*) ffPrintBreak,
-};
-
 void ffInitBreakOptions(FF_MAYBE_UNUSED FFBreakOptions* options)
 {
-    options->moduleInfo = ffModuleInfo;
 }
 
 void ffDestroyBreakOptions(FF_MAYBE_UNUSED FFBreakOptions* options)
 {
 }
+
+FFModuleBaseInfo ffBreakModuleInfo = {
+    .name = FF_BREAK_MODULE_NAME,
+    .description = "Print a empty line",
+    .initOptions = (void*) ffInitBreakOptions,
+    .destroyOptions = (void*) ffDestroyBreakOptions,
+    .parseJsonObject = (void*) ffParseBreakJsonObject,
+    .printModule = (void*) ffPrintBreak,
+};

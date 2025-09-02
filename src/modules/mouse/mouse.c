@@ -21,7 +21,7 @@ static void printDevice(FFMouseOptions* options, const FFMouseDevice* device, ui
     }
 }
 
-void ffPrintMouse(FFMouseOptions* options)
+bool ffPrintMouse(FFMouseOptions* options)
 {
     FF_LIST_AUTO_DESTROY result = ffListCreate(sizeof(FFMouseDevice));
 
@@ -30,13 +30,13 @@ void ffPrintMouse(FFMouseOptions* options)
     if(error)
     {
         ffPrintError(FF_MOUSE_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
 
     if(!result.length)
     {
         ffPrintError(FF_MOUSE_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "No devices detected");
-        return;
+        return false;
     }
 
     uint8_t index = 0;
@@ -46,6 +46,8 @@ void ffPrintMouse(FFMouseOptions* options)
         ffStrbufDestroy(&device->serial);
         ffStrbufDestroy(&device->name);
     }
+
+    return true;
 }
 
 void ffParseMouseJsonObject(FFMouseOptions* options, yyjson_val* module)
@@ -63,13 +65,10 @@ void ffParseMouseJsonObject(FFMouseOptions* options, yyjson_val* module)
 
 void ffGenerateMouseJsonConfig(FFMouseOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyMouseOptions))) FFMouseOptions defaultOptions;
-    ffInitMouseOptions(&defaultOptions);
-
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 }
 
-void ffGenerateMouseJsonResult(FF_MAYBE_UNUSED FFMouseOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateMouseJsonResult(FF_MAYBE_UNUSED FFMouseOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FF_LIST_AUTO_DESTROY result = ffListCreate(sizeof(FFMouseDevice));
 
@@ -78,7 +77,7 @@ void ffGenerateMouseJsonResult(FF_MAYBE_UNUSED FFMouseOptions* options, yyjson_m
     if(error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -94,11 +93,25 @@ void ffGenerateMouseJsonResult(FF_MAYBE_UNUSED FFMouseOptions* options, yyjson_m
         ffStrbufDestroy(&device->serial);
         ffStrbufDestroy(&device->name);
     }
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitMouseOptions(FFMouseOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "󰍽");
+}
+
+void ffDestroyMouseOptions(FFMouseOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffMouseModuleInfo = {
     .name = FF_MOUSE_MODULE_NAME,
     .description = "List connected mouses",
+    .initOptions = (void*) ffInitMouseOptions,
+    .destroyOptions = (void*) ffDestroyMouseOptions,
     .parseJsonObject = (void*) ffParseMouseJsonObject,
     .printModule = (void*) ffPrintMouse,
     .generateJsonResult = (void*) ffGenerateMouseJsonResult,
@@ -108,14 +121,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Mouse serial number", "serial"},
     }))
 };
-
-void ffInitMouseOptions(FFMouseOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "󰍽");
-}
-
-void ffDestroyMouseOptions(FFMouseOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

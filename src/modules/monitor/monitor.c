@@ -6,14 +6,14 @@
 
 #include <math.h>
 
-void ffPrintMonitor(FFMonitorOptions* options)
+bool ffPrintMonitor(FFMonitorOptions* options)
 {
     const FFDisplayServerResult* result = ffConnectDisplayServer();
 
     if(!result->displays.length)
     {
         ffPrintError(FF_MONITOR_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "No display detected");
-        return;
+        return false;
     }
 
     FF_STRBUF_AUTO_DESTROY key = ffStrbufCreate();
@@ -84,6 +84,8 @@ void ffPrintMonitor(FFMonitorOptions* options)
         ffStrbufDestroy(&display->name);
         ++index;
     }
+
+    return true;
 }
 
 void ffParseMonitorJsonObject(FFMonitorOptions* options, yyjson_val* module)
@@ -101,20 +103,30 @@ void ffParseMonitorJsonObject(FFMonitorOptions* options, yyjson_val* module)
 
 void ffGenerateMonitorJsonConfig(FFMonitorOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyMonitorOptions))) FFMonitorOptions defaultOptions;
-    ffInitMonitorOptions(&defaultOptions);
-
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 }
 
-void ffGenerateMonitorJsonResult(FF_MAYBE_UNUSED FFMonitorOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateMonitorJsonResult(FF_MAYBE_UNUSED FFMonitorOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     yyjson_mut_obj_add_str(doc, module, "error", "Monitor module is an alias of Display module");
+    return false;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitMonitorOptions(FFMonitorOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "󰹑");
+}
+
+void ffDestroyMonitorOptions(FFMonitorOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffMonitorModuleInfo = {
     .name = FF_MONITOR_MODULE_NAME,
     .description = "Alias of Display module",
+    .initOptions = (void*) ffInitMonitorOptions,
+    .destroyOptions = (void*) ffDestroyMonitorOptions,
     .parseJsonObject = (void*) ffParseMonitorJsonObject,
     .printModule = (void*) ffPrintMonitor,
     .generateJsonResult = (void*) ffGenerateMonitorJsonResult,
@@ -134,14 +146,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"True if the display is HDR compatible", "hdr-compatible"},
     }))
 };
-
-void ffInitMonitorOptions(FFMonitorOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "󰹑");
-}
-
-void ffDestroyMonitorOptions(FFMonitorOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

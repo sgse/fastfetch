@@ -4,7 +4,7 @@
 #include "modules/kernel/kernel.h"
 #include "util/stringUtils.h"
 
-void ffPrintKernel(FFKernelOptions* options)
+bool ffPrintKernel(FFKernelOptions* options)
 {
     const FFPlatformSysinfo* info = &instance.state.platform.sysinfo;
     if(options->moduleArgs.outputFormat.length == 0)
@@ -30,6 +30,8 @@ void ffPrintKernel(FFKernelOptions* options)
             FF_FORMAT_ARG(str, "page-size"),
         }));
     }
+
+    return true;
 }
 
 void ffParseKernelJsonObject(FFKernelOptions* options, yyjson_val* module)
@@ -47,13 +49,10 @@ void ffParseKernelJsonObject(FFKernelOptions* options, yyjson_val* module)
 
 void ffGenerateKernelJsonConfig(FFKernelOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyKernelOptions))) FFKernelOptions defaultOptions;
-    ffInitKernelOptions(&defaultOptions);
-
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 }
 
-void ffGenerateKernelJsonResult(FF_MAYBE_UNUSED FFKernelOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateKernelJsonResult(FF_MAYBE_UNUSED FFKernelOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     const FFPlatformSysinfo* info = &instance.state.platform.sysinfo;
 
@@ -64,11 +63,25 @@ void ffGenerateKernelJsonResult(FF_MAYBE_UNUSED FFKernelOptions* options, yyjson
     yyjson_mut_obj_add_strbuf(doc, obj, "version", &info->version);
     yyjson_mut_obj_add_strbuf(doc, obj, "displayVersion", &info->displayVersion);
     yyjson_mut_obj_add_uint(doc, obj, "pageSize", info->pageSize);
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitKernelOptions(FFKernelOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "");
+}
+
+void ffDestroyKernelOptions(FFKernelOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffKernelModuleInfo = {
     .name = FF_KERNEL_MODULE_NAME,
     .description = "Print system kernel version",
+    .initOptions = (void*) ffInitKernelOptions,
+    .destroyOptions = (void*) ffDestroyKernelOptions,
     .parseJsonObject = (void*) ffParseKernelJsonObject,
     .printModule = (void*) ffPrintKernel,
     .generateJsonResult = (void*) ffGenerateKernelJsonResult,
@@ -82,14 +95,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Page size", "page-size"},
     }))
 };
-
-void ffInitKernelOptions(FFKernelOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "");
-}
-
-void ffDestroyKernelOptions(FFKernelOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

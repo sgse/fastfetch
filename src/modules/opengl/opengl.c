@@ -4,8 +4,9 @@
 #include "modules/opengl/opengl.h"
 #include "util/stringUtils.h"
 
-void ffPrintOpenGL(FFOpenGLOptions* options)
+bool ffPrintOpenGL(FFOpenGLOptions* options)
 {
+    bool success = false;
     FFOpenGLResult result;
     ffStrbufInit(&result.version);
     ffStrbufInit(&result.renderer);
@@ -17,23 +18,25 @@ void ffPrintOpenGL(FFOpenGLOptions* options)
     if(error)
     {
         ffPrintError(FF_OPENGL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
-    }
-
-    if(options->moduleArgs.outputFormat.length == 0)
-    {
-        ffPrintLogoAndKey(FF_OPENGL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
-        puts(result.version.chars);
     }
     else
     {
-        FF_PRINT_FORMAT_CHECKED(FF_OPENGL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]) {
-            FF_FORMAT_ARG(result.version, "version"),
-            FF_FORMAT_ARG(result.renderer, "renderer"),
-            FF_FORMAT_ARG(result.vendor, "vendor"),
-            FF_FORMAT_ARG(result.slv, "slv"),
-            FF_FORMAT_ARG(result.library, "library"),
-        }));
+        if(options->moduleArgs.outputFormat.length == 0)
+        {
+            ffPrintLogoAndKey(FF_OPENGL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
+            puts(result.version.chars);
+        }
+        else
+        {
+            FF_PRINT_FORMAT_CHECKED(FF_OPENGL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]) {
+                FF_FORMAT_ARG(result.version, "version"),
+                FF_FORMAT_ARG(result.renderer, "renderer"),
+                FF_FORMAT_ARG(result.vendor, "vendor"),
+                FF_FORMAT_ARG(result.slv, "slv"),
+                FF_FORMAT_ARG(result.library, "library"),
+            }));
+        }
+        success = true;
     }
 
     ffStrbufDestroy(&result.version);
@@ -41,6 +44,8 @@ void ffPrintOpenGL(FFOpenGLOptions* options)
     ffStrbufDestroy(&result.vendor);
     ffStrbufDestroy(&result.slv);
     ffStrbufDestroy(&result.library);
+
+    return success;
 }
 
 void ffParseOpenGLJsonObject(FFOpenGLOptions* options, yyjson_val* module)
@@ -74,30 +79,25 @@ void ffParseOpenGLJsonObject(FFOpenGLOptions* options, yyjson_val* module)
 
 void ffGenerateOpenGLJsonConfig(FFOpenGLOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyOpenGLOptions))) FFOpenGLOptions defaultOptions;
-    ffInitOpenGLOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
-
-    if (options->library != defaultOptions.library)
+    switch (options->library)
     {
-        switch (options->library)
-        {
-        case FF_OPENGL_LIBRARY_AUTO:
-            yyjson_mut_obj_add_str(doc, module, "library", "auto");
-            break;
-        case FF_OPENGL_LIBRARY_EGL:
-            yyjson_mut_obj_add_str(doc, module, "library", "egl");
-            break;
-        case FF_OPENGL_LIBRARY_GLX:
-            yyjson_mut_obj_add_str(doc, module, "library", "glx");
-            break;
-        }
+    case FF_OPENGL_LIBRARY_AUTO:
+        yyjson_mut_obj_add_str(doc, module, "library", "auto");
+        break;
+    case FF_OPENGL_LIBRARY_EGL:
+        yyjson_mut_obj_add_str(doc, module, "library", "egl");
+        break;
+    case FF_OPENGL_LIBRARY_GLX:
+        yyjson_mut_obj_add_str(doc, module, "library", "glx");
+        break;
     }
 }
 
-void ffGenerateOpenGLJsonResult(FF_MAYBE_UNUSED FFOpenGLOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateOpenGLJsonResult(FF_MAYBE_UNUSED FFOpenGLOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
+    bool success = false;
     FFOpenGLResult result;
     ffStrbufInit(&result.version);
     ffStrbufInit(&result.renderer);
@@ -118,6 +118,7 @@ void ffGenerateOpenGLJsonResult(FF_MAYBE_UNUSED FFOpenGLOptions* options, yyjson
         yyjson_mut_obj_add_strbuf(doc, obj, "vendor", &result.vendor);
         yyjson_mut_obj_add_strbuf(doc, obj, "slv", &result.slv);
         yyjson_mut_obj_add_strbuf(doc, obj, "library", &result.library);
+        success = true;
     }
 
     ffStrbufDestroy(&result.version);
@@ -125,11 +126,27 @@ void ffGenerateOpenGLJsonResult(FF_MAYBE_UNUSED FFOpenGLOptions* options, yyjson
     ffStrbufDestroy(&result.vendor);
     ffStrbufDestroy(&result.slv);
     ffStrbufDestroy(&result.library);
+
+    return success;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitOpenGLOptions(FFOpenGLOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "");
+
+    options->library = FF_OPENGL_LIBRARY_AUTO;
+}
+
+void ffDestroyOpenGLOptions(FFOpenGLOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffOpenGLModuleInfo = {
     .name = FF_OPENGL_MODULE_NAME,
     .description = "Print highest OpenGL version supported by the GPU",
+    .initOptions = (void*) ffInitOpenGLOptions,
+    .destroyOptions = (void*) ffDestroyOpenGLOptions,
     .parseJsonObject = (void*) ffParseOpenGLJsonObject,
     .printModule = (void*) ffPrintOpenGL,
     .generateJsonResult = (void*) ffGenerateOpenGLJsonResult,
@@ -142,16 +159,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"OpenGL library used", "library"},
     }))
 };
-
-void ffInitOpenGLOptions(FFOpenGLOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "");
-
-    options->library = FF_OPENGL_LIBRARY_AUTO;
-}
-
-void ffDestroyOpenGLOptions(FFOpenGLOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

@@ -5,14 +5,14 @@
 #include "modules/wm/wm.h"
 #include "util/stringUtils.h"
 
-void ffPrintWM(FFWMOptions* options)
+bool ffPrintWM(FFWMOptions* options)
 {
     const FFDisplayServerResult* result = ffConnectDisplayServer();
 
     if(result->wmPrettyName.length == 0)
     {
         ffPrintError(FF_WM_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "No WM found");
-        return;
+        return false;
     }
 
     FF_STRBUF_AUTO_DESTROY pluginName = ffStrbufCreate();
@@ -61,6 +61,8 @@ void ffPrintWM(FFWMOptions* options)
             FF_FORMAT_ARG(version, "version"),
         }));
     }
+
+    return true;
 }
 
 void ffParseWMJsonObject(FFWMOptions* options, yyjson_val* module)
@@ -84,23 +86,19 @@ void ffParseWMJsonObject(FFWMOptions* options, yyjson_val* module)
 
 void ffGenerateWMJsonConfig(FFWMOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyWMOptions))) FFWMOptions defaultOptions;
-    ffInitWMOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
-
-    if (options->detectPlugin != defaultOptions.detectPlugin)
-        yyjson_mut_obj_add_bool(doc, module, "detectPlugin", options->detectPlugin);
+    yyjson_mut_obj_add_bool(doc, module, "detectPlugin", options->detectPlugin);
 }
 
-void ffGenerateWMJsonResult(FF_MAYBE_UNUSED FFWMOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateWMJsonResult(FF_MAYBE_UNUSED FFWMOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     const FFDisplayServerResult* result = ffConnectDisplayServer();
 
     if(result->wmPrettyName.length == 0)
     {
         yyjson_mut_obj_add_str(doc, module, "error", "No WM found");
-        return;
+        return false;
     }
 
     FF_STRBUF_AUTO_DESTROY pluginName = ffStrbufCreate();
@@ -117,11 +115,26 @@ void ffGenerateWMJsonResult(FF_MAYBE_UNUSED FFWMOptions* options, yyjson_mut_doc
     yyjson_mut_obj_add_strbuf(doc, obj, "protocolName", &result->wmProtocolName);
     yyjson_mut_obj_add_strbuf(doc, obj, "pluginName", &pluginName);
     yyjson_mut_obj_add_strbuf(doc, obj, "version", &version);
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitWMOptions(FFWMOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "");
+    options->detectPlugin = false;
+}
+
+void ffDestroyWMOptions(FFWMOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffWMModuleInfo = {
     .name = FF_WM_MODULE_NAME,
     .description = "Print window manager name and version",
+    .initOptions = (void*) ffInitWMOptions,
+    .destroyOptions = (void*) ffDestroyWMOptions,
     .parseJsonObject = (void*) ffParseWMJsonObject,
     .printModule = (void*) ffPrintWM,
     .generateJsonResult = (void*) ffGenerateWMJsonResult,
@@ -134,15 +147,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"WM version", "version"},
     }))
 };
-
-void ffInitWMOptions(FFWMOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "");
-    options->detectPlugin = false;
-}
-
-void ffDestroyWMOptions(FFWMOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

@@ -31,7 +31,7 @@ static void formatKey(const FFPhysicalDiskOptions* options, FFPhysicalDiskResult
     }
 }
 
-void ffPrintPhysicalDisk(FFPhysicalDiskOptions* options)
+bool ffPrintPhysicalDisk(FFPhysicalDiskOptions* options)
 {
     FF_LIST_AUTO_DESTROY result = ffListCreate(sizeof(FFPhysicalDiskResult));
     const char* error = ffDetectPhysicalDisk(&result, options);
@@ -39,7 +39,7 @@ void ffPrintPhysicalDisk(FFPhysicalDiskOptions* options)
     if(error)
     {
         ffPrintError(FF_PHYSICALDISK_DISPLAY_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
 
     ffListSort(&result, (const void*) sortDevices);
@@ -92,7 +92,7 @@ void ffPrintPhysicalDisk(FFPhysicalDiskOptions* options)
                 ffStrbufAppendC(&buffer, ']');
             }
 
-            if (dev->temperature == dev->temperature) //FF_PHYSICALDISK_TEMP_UNSET
+            if (dev->temperature != FF_PHYSICALDISK_TEMP_UNSET)
             {
                 if(buffer.length > 0)
                     ffStrbufAppendS(&buffer, " - ");
@@ -131,6 +131,8 @@ void ffPrintPhysicalDisk(FFPhysicalDiskOptions* options)
         ffStrbufDestroy(&dev->serial);
         ffStrbufDestroy(&dev->revision);
     }
+
+    return true;
 }
 
 void ffParsePhysicalDiskJsonObject(FFPhysicalDiskOptions* options, yyjson_val* module)
@@ -157,18 +159,14 @@ void ffParsePhysicalDiskJsonObject(FFPhysicalDiskOptions* options, yyjson_val* m
 
 void ffGeneratePhysicalDiskJsonConfig(FFPhysicalDiskOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyPhysicalDiskOptions))) FFPhysicalDiskOptions defaultOptions;
-    ffInitPhysicalDiskOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    yyjson_mut_obj_add_strbuf(doc, module, "namePrefix", &options->namePrefix);
 
-    if (!ffStrbufEqual(&options->namePrefix, &defaultOptions.namePrefix))
-        yyjson_mut_obj_add_strbuf(doc, module, "namePrefix", &options->namePrefix);
-
-    ffTempsGenerateJsonConfig(doc, module, defaultOptions.temp, defaultOptions.tempConfig, options->temp, options->tempConfig);
+    ffTempsGenerateJsonConfig(doc, module, options->temp, options->tempConfig);
 }
 
-void ffGeneratePhysicalDiskJsonResult(FFPhysicalDiskOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGeneratePhysicalDiskJsonResult(FFPhysicalDiskOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FF_LIST_AUTO_DESTROY result = ffListCreate(sizeof(FFPhysicalDiskResult));
     const char* error = ffDetectPhysicalDisk(&result, options);
@@ -176,7 +174,7 @@ void ffGeneratePhysicalDiskJsonResult(FFPhysicalDiskOptions* options, yyjson_mut
     if(error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -213,7 +211,10 @@ void ffGeneratePhysicalDiskJsonResult(FFPhysicalDiskOptions* options, yyjson_mut
 
         yyjson_mut_obj_add_strbuf(doc, obj, "revision", &dev->revision);
 
-        yyjson_mut_obj_add_real(doc, obj, "temperature", dev->temperature);
+        if (dev->temperature != FF_PHYSICALDISK_TEMP_UNSET)
+            yyjson_mut_obj_add_real(doc, obj, "temperature", dev->temperature);
+        else
+            yyjson_mut_obj_add_null(doc, obj, "temperature");
     }
 
     FF_LIST_FOR_EACH(FFPhysicalDiskResult, dev, result)
@@ -224,11 +225,30 @@ void ffGeneratePhysicalDiskJsonResult(FFPhysicalDiskOptions* options, yyjson_mut
         ffStrbufDestroy(&dev->serial);
         ffStrbufDestroy(&dev->revision);
     }
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitPhysicalDiskOptions(FFPhysicalDiskOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "󰋊");
+
+    ffStrbufInit(&options->namePrefix);
+    options->temp = false;
+    options->tempConfig = (FFColorRangeConfig) { 50, 70 };
+}
+
+void ffDestroyPhysicalDiskOptions(FFPhysicalDiskOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+    ffStrbufDestroy(&options->namePrefix);
+}
+
+FFModuleBaseInfo ffPhysicalDiskModuleInfo = {
     .name = FF_PHYSICALDISK_MODULE_NAME,
     .description = "Print physical disk information",
+    .initOptions = (void*) ffInitPhysicalDiskOptions,
+    .destroyOptions = (void*) ffDestroyPhysicalDiskOptions,
     .parseJsonObject = (void*) ffParsePhysicalDiskJsonObject,
     .printModule = (void*) ffPrintPhysicalDisk,
     .generateJsonResult = (void*) ffGeneratePhysicalDiskJsonResult,
@@ -246,19 +266,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Device temperature (formatted)", "temperature"},
     }))
 };
-
-void ffInitPhysicalDiskOptions(FFPhysicalDiskOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "󰋊");
-
-    ffStrbufInit(&options->namePrefix);
-    options->temp = false;
-    options->tempConfig = (FFColorRangeConfig) { 50, 70 };
-}
-
-void ffDestroyPhysicalDiskOptions(FFPhysicalDiskOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-    ffStrbufDestroy(&options->namePrefix);
-}

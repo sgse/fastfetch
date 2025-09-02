@@ -72,7 +72,7 @@ static void printBattery(FFBatteryOptions* options, FFBatteryResult* result, uin
                 ffStrbufAppend(&str, &result->status);
         }
 
-        if(result->temperature == result->temperature) //FF_BATTERY_TEMP_UNSET
+        if(result->temperature != FF_BATTERY_TEMP_UNSET)
         {
             if(str.length > 0)
                 ffStrbufAppendS(&str, " - ");
@@ -125,7 +125,7 @@ static void printBattery(FFBatteryOptions* options, FFBatteryResult* result, uin
     }
 }
 
-void ffPrintBattery(FFBatteryOptions* options)
+bool ffPrintBattery(FFBatteryOptions* options)
 {
     FF_LIST_AUTO_DESTROY results = ffListCreate(sizeof(FFBatteryResult));
 
@@ -134,12 +134,12 @@ void ffPrintBattery(FFBatteryOptions* options)
     if (error)
     {
         ffPrintError(FF_BATTERY_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
     if(results.length == 0)
     {
         ffPrintError(FF_BATTERY_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", "No batteries found");
-        return;
+        return false;
     }
 
     for(uint32_t i = 0; i < results.length; i++)
@@ -157,6 +157,7 @@ void ffPrintBattery(FFBatteryOptions* options)
         ffStrbufDestroy(&result->serial);
         ffStrbufDestroy(&result->manufactureDate);
     }
+    return true;
 }
 
 void ffParseBatteryJsonObject(FFBatteryOptions* options, yyjson_val* module)
@@ -188,22 +189,17 @@ void ffParseBatteryJsonObject(FFBatteryOptions* options, yyjson_val* module)
 
 void ffGenerateBatteryJsonConfig(FFBatteryOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyBatteryOptions))) FFBatteryOptions defaultOptions;
-    ffInitBatteryOptions(&defaultOptions);
-
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
     #ifdef _WIN32
-    if (defaultOptions.useSetupApi != options->useSetupApi)
         yyjson_mut_obj_add_bool(doc, module, "useSetupApi", options->useSetupApi);
     #endif
 
-    ffTempsGenerateJsonConfig(doc, module, defaultOptions.temp, defaultOptions.tempConfig, options->temp, options->tempConfig);
-
-    ffPercentGenerateJsonConfig(doc, module, defaultOptions.percent, options->percent);
+    ffTempsGenerateJsonConfig(doc, module, options->temp, options->tempConfig);
+    ffPercentGenerateJsonConfig(doc, module, options->percent);
 }
 
-void ffGenerateBatteryJsonResult(FFBatteryOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateBatteryJsonResult(FFBatteryOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FF_LIST_AUTO_DESTROY results = ffListCreate(sizeof(FFBatteryResult));
 
@@ -211,7 +207,7 @@ void ffGenerateBatteryJsonResult(FFBatteryOptions* options, yyjson_mut_doc* doc,
     if (error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -226,7 +222,10 @@ void ffGenerateBatteryJsonResult(FFBatteryOptions* options, yyjson_mut_doc* doc,
         yyjson_mut_obj_add_strbuf(doc, obj, "status", &battery->status);
         yyjson_mut_obj_add_strbuf(doc, obj, "technology", &battery->technology);
         yyjson_mut_obj_add_strbuf(doc, obj, "serial", &battery->serial);
-        yyjson_mut_obj_add_real(doc, obj, "temperature", battery->temperature);
+        if (battery->temperature != FF_BATTERY_TEMP_UNSET)
+            yyjson_mut_obj_add_real(doc, obj, "temperature", battery->temperature);
+        else
+            yyjson_mut_obj_add_null(doc, obj, "temperature");
         yyjson_mut_obj_add_uint(doc, obj, "cycleCount", battery->cycleCount);
         if (battery->timeRemaining > 0)
             yyjson_mut_obj_add_int(doc, obj, "timeRemaining", battery->timeRemaining);
@@ -243,11 +242,32 @@ void ffGenerateBatteryJsonResult(FFBatteryOptions* options, yyjson_mut_doc* doc,
         ffStrbufDestroy(&battery->status);
         ffStrbufDestroy(&battery->serial);
     }
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitBatteryOptions(FFBatteryOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "");
+    options->temp = false;
+    options->tempConfig = (FFColorRangeConfig) { 60, 80 };
+    options->percent = (FFPercentageModuleConfig) { 50, 20, 0 };
+
+    #ifdef _WIN32
+        options->useSetupApi = false;
+    #endif
+}
+
+void ffDestroyBatteryOptions(FFBatteryOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffBatteryModuleInfo = {
     .name = FF_BATTERY_MODULE_NAME,
     .description = "Print battery capacity, status, etc",
+    .initOptions = (void*) ffInitBatteryOptions,
+    .destroyOptions = (void*) ffDestroyBatteryOptions,
     .parseJsonObject = (void*) ffParseBatteryJsonObject,
     .printModule = (void*) ffPrintBattery,
     .generateJsonResult = (void*) ffGenerateBatteryJsonResult,
@@ -270,21 +290,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Battery time remaining (formatted)", "time-formatted"},
     }))
 };
-
-void ffInitBatteryOptions(FFBatteryOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "");
-    options->temp = false;
-    options->tempConfig = (FFColorRangeConfig) { 60, 80 };
-    options->percent = (FFPercentageModuleConfig) { 50, 20, 0 };
-
-    #ifdef _WIN32
-        options->useSetupApi = false;
-    #endif
-}
-
-void ffDestroyBatteryOptions(FFBatteryOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

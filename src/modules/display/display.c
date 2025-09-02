@@ -17,14 +17,14 @@ static int sortByNameDesc(FFDisplayResult* a, FFDisplayResult* b)
     return -ffStrbufComp(&a->name, &b->name);
 }
 
-void ffPrintDisplay(FFDisplayOptions* options)
+bool ffPrintDisplay(FFDisplayOptions* options)
 {
     const FFDisplayServerResult* dsResult = ffConnectDisplayServer();
 
     if(dsResult->displays.length == 0)
     {
         ffPrintError(FF_DISPLAY_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Couldn't detect display");
-        return;
+        return false;
     }
 
     if (options->order != FF_DISPLAY_ORDER_NONE)
@@ -68,7 +68,7 @@ void ffPrintDisplay(FFDisplayOptions* options)
         ffStrbufTrimRight(&buffer, ' ');
         ffStrbufTrimRight(&buffer, ',');
         ffStrbufPutTo(&buffer, stdout);
-        return;
+        return true;
     }
 
     FF_STRBUF_AUTO_DESTROY key = ffStrbufCreate();
@@ -101,6 +101,7 @@ void ffPrintDisplay(FFDisplayOptions* options)
 
         FF_STRBUF_AUTO_DESTROY buffer = ffStrbufCreate();
         double inch = sqrt(result->physicalWidth * result->physicalWidth + result->physicalHeight * result->physicalHeight) / 25.4;
+        double scaleFactor = (double) result->height / (double) result->scaledHeight;
 
         if(options->moduleArgs.outputFormat.length == 0)
         {
@@ -108,22 +109,27 @@ void ffPrintDisplay(FFDisplayOptions* options)
 
             ffStrbufAppendF(&buffer, "%ix%i", result->width, result->height);
 
-            if(result->refreshRate > 0)
-            {
-                const char* space = instance.config.display.freqSpaceBeforeUnit == FF_SPACE_BEFORE_UNIT_NEVER ? "" : " ";
-                if(options->preciseRefreshRate)
-                    ffStrbufAppendF(&buffer, " @ %g%sHz", ((int) (result->refreshRate * 1000 + 0.5)) / 1000.0, space);
-                else
-                    ffStrbufAppendF(&buffer, " @ %i%sHz", (uint32_t) (result->refreshRate + 0.5), space);
-            }
-
             if(
                 result->scaledWidth > 0 && result->scaledWidth != result->width &&
                 result->scaledHeight > 0 && result->scaledHeight != result->height)
-                ffStrbufAppendF(&buffer, " (as %ix%i)", result->scaledWidth, result->scaledHeight);
+            {
+                ffStrbufAppendS(&buffer, " @ ");
+                ffStrbufAppendDouble(&buffer, scaleFactor, instance.config.display.fractionNdigits, instance.config.display.fractionTrailingZeros == FF_FRACTION_TRAILING_ZEROS_TYPE_SHOW);
+                ffStrbufAppendC(&buffer, 'x');
+            }
 
             if (inch > 1)
                 ffStrbufAppendF(&buffer, " in %i\"", (uint32_t) (inch + 0.5));
+
+            if(result->refreshRate > 0)
+            {
+                ffStrbufAppendS(&buffer, ", ");
+                if(options->preciseRefreshRate)
+                    ffStrbufAppendDouble(&buffer, result->refreshRate, 3, false);
+                else
+                    ffStrbufAppendSInt(&buffer, (int) (result->refreshRate + 0.5));
+                ffStrbufAppendS(&buffer, instance.config.display.freqSpaceBeforeUnit == FF_SPACE_BEFORE_UNIT_NEVER ? "Hz" : " Hz");
+            }
 
             bool flag = false;
             if (result->type != FF_DISPLAY_TYPE_UNKNOWN)
@@ -185,8 +191,6 @@ void ffPrintDisplay(FFDisplayOptions* options)
             else
                 buf[0] = '\0';
 
-            double scaleFactor = (double) result->height / (double) result->scaledHeight;
-
             FF_PRINT_FORMAT_CHECKED(key.chars, 0, &options->moduleArgs, FF_PRINT_TYPE_NO_CUSTOM_KEY, ((FFformatarg[]) {
                 FF_FORMAT_ARG(result->width, "width"),
                 FF_FORMAT_ARG(result->height, "height"),
@@ -215,6 +219,8 @@ void ffPrintDisplay(FFDisplayOptions* options)
             }));
         }
     }
+
+    return true;
 }
 
 void ffParseDisplayJsonObject(FFDisplayOptions* options, yyjson_val* module)
@@ -282,45 +288,51 @@ void ffParseDisplayJsonObject(FFDisplayOptions* options, yyjson_val* module)
 
 void ffGenerateDisplayJsonConfig(FFDisplayOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyDisplayOptions))) FFDisplayOptions defaultOptions;
-    ffInitDisplayOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
-
-    if (options->compactType != defaultOptions.compactType)
+    switch ((int) options->compactType)
     {
-        switch ((int) options->compactType)
-        {
-            case FF_DISPLAY_COMPACT_TYPE_NONE:
-                yyjson_mut_obj_add_str(doc, module, "compactType", "none");
-                break;
-            case FF_DISPLAY_COMPACT_TYPE_ORIGINAL_BIT:
-                yyjson_mut_obj_add_str(doc, module, "compactType", "original");
-                break;
-            case FF_DISPLAY_COMPACT_TYPE_SCALED_BIT:
-                yyjson_mut_obj_add_str(doc, module, "compactType", "scaled");
-                break;
-            case FF_DISPLAY_COMPACT_TYPE_ORIGINAL_BIT | FF_DISPLAY_COMPACT_TYPE_REFRESH_RATE_BIT:
-                yyjson_mut_obj_add_str(doc, module, "compactType", "original-with-refresh-rate");
-                break;
-            case FF_DISPLAY_COMPACT_TYPE_SCALED_BIT | FF_DISPLAY_COMPACT_TYPE_REFRESH_RATE_BIT:
-                yyjson_mut_obj_add_str(doc, module, "compactType", "scaled-with-refresh-rate");
-                break;
-        }
+        case FF_DISPLAY_COMPACT_TYPE_NONE:
+            yyjson_mut_obj_add_str(doc, module, "compactType", "none");
+            break;
+        case FF_DISPLAY_COMPACT_TYPE_ORIGINAL_BIT:
+            yyjson_mut_obj_add_str(doc, module, "compactType", "original");
+            break;
+        case FF_DISPLAY_COMPACT_TYPE_SCALED_BIT:
+            yyjson_mut_obj_add_str(doc, module, "compactType", "scaled");
+            break;
+        case FF_DISPLAY_COMPACT_TYPE_ORIGINAL_BIT | FF_DISPLAY_COMPACT_TYPE_REFRESH_RATE_BIT:
+            yyjson_mut_obj_add_str(doc, module, "compactType", "original-with-refresh-rate");
+            break;
+        case FF_DISPLAY_COMPACT_TYPE_SCALED_BIT | FF_DISPLAY_COMPACT_TYPE_REFRESH_RATE_BIT:
+            yyjson_mut_obj_add_str(doc, module, "compactType", "scaled-with-refresh-rate");
+            break;
     }
 
-    if (options->preciseRefreshRate != defaultOptions.preciseRefreshRate)
-        yyjson_mut_obj_add_bool(doc, module, "preciseRefreshRate", options->preciseRefreshRate);
+    yyjson_mut_obj_add_bool(doc, module, "preciseRefreshRate", options->preciseRefreshRate);
+
+    switch (options->order)
+    {
+        case FF_DISPLAY_ORDER_NONE:
+            yyjson_mut_obj_add_null(doc, module, "order");
+            break;
+        case FF_DISPLAY_ORDER_ASC:
+            yyjson_mut_obj_add_str(doc, module, "order", "asc");
+            break;
+        case FF_DISPLAY_ORDER_DESC:
+            yyjson_mut_obj_add_str(doc, module, "order", "desc");
+            break;
+    }
 }
 
-void ffGenerateDisplayJsonResult(FF_MAYBE_UNUSED FFDisplayOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateDisplayJsonResult(FF_MAYBE_UNUSED FFDisplayOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     const FFDisplayServerResult* dsResult = ffConnectDisplayServer();
 
     if(dsResult->displays.length == 0)
     {
         yyjson_mut_obj_add_str(doc, module, "error", "Couldn't detect display");
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -400,11 +412,27 @@ void ffGenerateDisplayJsonResult(FF_MAYBE_UNUSED FFDisplayOptions* options, yyjs
 
         yyjson_mut_obj_add_str(doc, obj, "platformApi", item->platformApi);
     }
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitDisplayOptions(FFDisplayOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "󰍹");
+    options->compactType = FF_DISPLAY_COMPACT_TYPE_NONE;
+    options->preciseRefreshRate = false;
+}
+
+void ffDestroyDisplayOptions(FFDisplayOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffDisplayModuleInfo = {
     .name = FF_DISPLAY_MODULE_NAME,
     .description = "Print resolutions, refresh rates, etc",
+    .initOptions = (void*) ffInitDisplayOptions,
+    .destroyOptions = (void*) ffDestroyDisplayOptions,
     .parseJsonObject = (void*) ffParseDisplayJsonObject,
     .printModule = (void*) ffPrintDisplay,
     .generateJsonResult = (void*) ffGenerateDisplayJsonResult,
@@ -436,16 +464,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Screen preferred refresh rate (in Hz)", "preferred-refresh-rate"},
     }))
 };
-
-void ffInitDisplayOptions(FFDisplayOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "󰍹");
-    options->compactType = FF_DISPLAY_COMPACT_TYPE_NONE;
-    options->preciseRefreshRate = false;
-}
-
-void ffDestroyDisplayOptions(FFDisplayOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

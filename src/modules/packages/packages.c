@@ -4,7 +4,7 @@
 #include "modules/packages/packages.h"
 #include "util/stringUtils.h"
 
-void ffPrintPackages(FFPackagesOptions* options)
+bool ffPrintPackages(FFPackagesOptions* options)
 {
     FFPackagesResult counts = {};
     ffStrbufInit(&counts.pacmanBranch);
@@ -14,7 +14,7 @@ void ffPrintPackages(FFPackagesOptions* options)
     if(error)
     {
         ffPrintError(FF_PACKAGES_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
 
     uint32_t nixAll = counts.nixDefault + counts.nixSystem + counts.nixUser;
@@ -203,6 +203,8 @@ void ffPrintPackages(FFPackagesOptions* options)
     }
 
     ffStrbufDestroy(&counts.pacmanBranch);
+
+    return true;
 }
 
 void ffParsePackagesJsonObject(FFPackagesOptions* options, yyjson_val* module)
@@ -324,55 +326,53 @@ void ffParsePackagesJsonObject(FFPackagesOptions* options, yyjson_val* module)
 
 void ffGeneratePackagesJsonConfig(FFPackagesOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyPackagesOptions))) FFPackagesOptions defaultOptions;
-    ffInitPackagesOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
-
-    if (options->disabled != defaultOptions.disabled)
-    {
-        yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "disabled");
-        #define FF_TEST_PACKAGE_NAME(name) else if ((options->disabled & FF_PACKAGES_FLAG_ ## name ## _BIT) != (defaultOptions.disabled & FF_PACKAGES_FLAG_ ## name ## _BIT)) { yyjson_mut_arr_add_str(doc, arr, #name); }
-        if (false);
-        FF_TEST_PACKAGE_NAME(AM)
-        FF_TEST_PACKAGE_NAME(APK)
-        FF_TEST_PACKAGE_NAME(BREW)
-        FF_TEST_PACKAGE_NAME(CHOCO)
-        FF_TEST_PACKAGE_NAME(DPKG)
-        FF_TEST_PACKAGE_NAME(EMERGE)
-        FF_TEST_PACKAGE_NAME(EOPKG)
-        FF_TEST_PACKAGE_NAME(FLATPAK)
-        FF_TEST_PACKAGE_NAME(GUIX)
-        FF_TEST_PACKAGE_NAME(HPKG)
-        FF_TEST_PACKAGE_NAME(LINGLONG)
-        FF_TEST_PACKAGE_NAME(LPKG)
-        FF_TEST_PACKAGE_NAME(LPKGBUILD)
-        FF_TEST_PACKAGE_NAME(MACPORTS)
-        FF_TEST_PACKAGE_NAME(MPORT)
-        FF_TEST_PACKAGE_NAME(NIX)
-        FF_TEST_PACKAGE_NAME(OPKG)
-        FF_TEST_PACKAGE_NAME(PACMAN)
-        FF_TEST_PACKAGE_NAME(PACSTALL)
-        FF_TEST_PACKAGE_NAME(PALUDIS)
-        FF_TEST_PACKAGE_NAME(PISI)
-        FF_TEST_PACKAGE_NAME(PKG)
-        FF_TEST_PACKAGE_NAME(PKGTOOL)
-        FF_TEST_PACKAGE_NAME(PKGSRC)
-        FF_TEST_PACKAGE_NAME(RPM)
-        FF_TEST_PACKAGE_NAME(SCOOP)
-        FF_TEST_PACKAGE_NAME(SNAP)
-        FF_TEST_PACKAGE_NAME(SOAR)
-        FF_TEST_PACKAGE_NAME(SORCERY)
-        FF_TEST_PACKAGE_NAME(WINGET)
-        FF_TEST_PACKAGE_NAME(XBPS)
-        #undef FF_TEST_PACKAGE_NAME
+    FF_STRBUF_AUTO_DESTROY buf = ffStrbufCreate();
+    yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "disabled");
+    #define FF_TEST_PACKAGE_NAME(name) else if ((options->disabled & FF_PACKAGES_FLAG_ ## name ## _BIT)) { \
+        ffStrbufSetS(&buf, #name); \
+        ffStrbufLowerCase(&buf); \
+        yyjson_mut_arr_add_strbuf(doc, arr, &buf); \
     }
+    if (false);
+    FF_TEST_PACKAGE_NAME(AM)
+    FF_TEST_PACKAGE_NAME(APK)
+    FF_TEST_PACKAGE_NAME(BREW)
+    FF_TEST_PACKAGE_NAME(CHOCO)
+    FF_TEST_PACKAGE_NAME(DPKG)
+    FF_TEST_PACKAGE_NAME(EMERGE)
+    FF_TEST_PACKAGE_NAME(EOPKG)
+    FF_TEST_PACKAGE_NAME(FLATPAK)
+    FF_TEST_PACKAGE_NAME(GUIX)
+    FF_TEST_PACKAGE_NAME(HPKG)
+    FF_TEST_PACKAGE_NAME(LINGLONG)
+    FF_TEST_PACKAGE_NAME(LPKG)
+    FF_TEST_PACKAGE_NAME(LPKGBUILD)
+    FF_TEST_PACKAGE_NAME(MACPORTS)
+    FF_TEST_PACKAGE_NAME(MPORT)
+    FF_TEST_PACKAGE_NAME(NIX)
+    FF_TEST_PACKAGE_NAME(OPKG)
+    FF_TEST_PACKAGE_NAME(PACMAN)
+    FF_TEST_PACKAGE_NAME(PACSTALL)
+    FF_TEST_PACKAGE_NAME(PALUDIS)
+    FF_TEST_PACKAGE_NAME(PISI)
+    FF_TEST_PACKAGE_NAME(PKG)
+    FF_TEST_PACKAGE_NAME(PKGTOOL)
+    FF_TEST_PACKAGE_NAME(PKGSRC)
+    FF_TEST_PACKAGE_NAME(RPM)
+    FF_TEST_PACKAGE_NAME(SCOOP)
+    FF_TEST_PACKAGE_NAME(SNAP)
+    FF_TEST_PACKAGE_NAME(SOAR)
+    FF_TEST_PACKAGE_NAME(SORCERY)
+    FF_TEST_PACKAGE_NAME(WINGET)
+    FF_TEST_PACKAGE_NAME(XBPS)
+    #undef FF_TEST_PACKAGE_NAME
 
-    if (options->combined != defaultOptions.combined)
-        yyjson_mut_obj_add_bool(doc, module, "combined", options->combined);
+    yyjson_mut_obj_add_bool(doc, module, "combined", options->combined);
 }
 
-void ffGeneratePackagesJsonResult(FF_MAYBE_UNUSED FFPackagesOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGeneratePackagesJsonResult(FF_MAYBE_UNUSED FFPackagesOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FFPackagesResult counts = {};
     ffStrbufInit(&counts.pacmanBranch);
@@ -382,7 +382,7 @@ void ffGeneratePackagesJsonResult(FF_MAYBE_UNUSED FFPackagesOptions* options, yy
     if(error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* obj = yyjson_mut_obj_add_obj(doc, module, "result");
@@ -429,11 +429,28 @@ void ffGeneratePackagesJsonResult(FF_MAYBE_UNUSED FFPackagesOptions* options, yy
     FF_APPEND_PACKAGE_COUNT(winget)
     FF_APPEND_PACKAGE_COUNT(xbps)
     yyjson_mut_obj_add_strbuf(doc, obj, "pacmanBranch", &counts.pacmanBranch);
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitPackagesOptions(FFPackagesOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "󰏖");
+
+    options->disabled = FF_PACKAGES_DISABLE_LIST;
+    options->combined = false;
+}
+
+void ffDestroyPackagesOptions(FFPackagesOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffPackagesModuleInfo = {
     .name = FF_PACKAGES_MODULE_NAME,
     .description = "List installed package managers and count of installed packages",
+    .initOptions = (void*) ffInitPackagesOptions,
+    .destroyOptions = (void*) ffDestroyPackagesOptions,
     .parseJsonObject = (void*) ffParsePackagesJsonObject,
     .printModule = (void*) ffPrintPackages,
     .generateJsonResult = (void*) ffGeneratePackagesJsonResult,
@@ -488,17 +505,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Total number of all hpkg packages", "hpkg-all"},
     }))
 };
-
-void ffInitPackagesOptions(FFPackagesOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "󰏖");
-
-    options->disabled = FF_PACKAGES_DISABLE_LIST;
-    options->combined = false;
-}
-
-void ffDestroyPackagesOptions(FFPackagesOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

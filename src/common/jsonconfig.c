@@ -50,17 +50,19 @@ bool ffJsonConfigParseModuleArgs(yyjson_val* key, yyjson_val* val, FFModuleArgs*
     return false;
 }
 
-void ffJsonConfigGenerateModuleArgsConfig(yyjson_mut_doc* doc, yyjson_mut_val* module, FFModuleArgs* defaultModuleArgs, FFModuleArgs* moduleArgs)
+void ffJsonConfigGenerateModuleArgsConfig(yyjson_mut_doc* doc, yyjson_mut_val* module, FFModuleArgs* moduleArgs)
 {
-    if (!ffStrbufEqual(&defaultModuleArgs->key, &moduleArgs->key))
+    if (moduleArgs->key.length > 0)
         yyjson_mut_obj_add_strbuf(doc, module, "key", &moduleArgs->key);
-    if (!ffStrbufEqual(&defaultModuleArgs->outputFormat, &moduleArgs->outputFormat))
+    if (moduleArgs->outputFormat.length > 0)
         yyjson_mut_obj_add_strbuf(doc, module, "format", &moduleArgs->outputFormat);
-    if (!ffStrbufEqual(&defaultModuleArgs->keyColor, &moduleArgs->keyColor))
+    if (moduleArgs->outputColor.length > 0)
+        yyjson_mut_obj_add_strbuf(doc, module, "outputColor", &moduleArgs->outputColor);
+    if (moduleArgs->keyColor.length > 0)
         yyjson_mut_obj_add_strbuf(doc, module, "keyColor", &moduleArgs->keyColor);
-    if (moduleArgs->keyWidth != defaultModuleArgs->keyWidth)
+    if (moduleArgs->keyWidth > 0)
         yyjson_mut_obj_add_uint(doc, module, "keyWidth", moduleArgs->keyWidth);
-    if (!ffStrbufEqual(&defaultModuleArgs->keyIcon, &moduleArgs->keyIcon))
+    if (moduleArgs->keyIcon.length > 0)
         yyjson_mut_obj_add_strbuf(doc, module, "keyIcon", &moduleArgs->keyIcon);
 }
 
@@ -99,16 +101,6 @@ const char* ffJsonConfigParseEnum(yyjson_val* val, int* result, FFKeyValuePair p
         return "Invalid enum value type; must be a string or integer";
 }
 
-static inline void genJsonResult(FFModuleBaseInfo* baseInfo, yyjson_mut_doc* doc)
-{
-    yyjson_mut_val* module = yyjson_mut_arr_add_obj(doc, doc->root);
-    yyjson_mut_obj_add_str(doc, module, "type", baseInfo->name);
-    if (baseInfo->generateJsonResult)
-        baseInfo->generateJsonResult(baseInfo, doc, module);
-    else
-        yyjson_mut_obj_add_str(doc, module, "error", "Unsupported for JSON format");
-}
-
 static bool parseModuleJsonObject(const char* type, yyjson_val* jsonVal, yyjson_mut_doc* jsonDoc)
 {
     if(!ffCharIsEnglishAlphabet(type[0])) return false;
@@ -118,20 +110,47 @@ static bool parseModuleJsonObject(const char* type, yyjson_val* jsonVal, yyjson_
         FFModuleBaseInfo* baseInfo = *modules;
         if (ffStrEqualsIgnCase(type, baseInfo->name))
         {
-            if (jsonVal) baseInfo->parseJsonObject(baseInfo, jsonVal);
-            if (__builtin_expect(jsonDoc != NULL, false))
-                genJsonResult(baseInfo, jsonDoc);
+            uint8_t optionBuf[FF_OPTION_MAX_SIZE];
+            baseInfo->initOptions(optionBuf);
+            if (jsonVal) baseInfo->parseJsonObject(optionBuf, jsonVal);
+            bool succeeded;
+            if (jsonDoc)
+            {
+                yyjson_mut_val* module = yyjson_mut_arr_add_obj(jsonDoc, jsonDoc->root);
+                yyjson_mut_obj_add_str(jsonDoc, module, "type", baseInfo->name);
+                if (baseInfo->generateJsonResult)
+                    succeeded = baseInfo->generateJsonResult(optionBuf, jsonDoc, module);
+                else
+                {
+                    yyjson_mut_obj_add_str(jsonDoc, module, "error", "Unsupported for JSON format");
+                    succeeded = false;
+                }
+            }
             else
-                baseInfo->printModule(baseInfo);
-            return true;
+                succeeded = baseInfo->printModule(optionBuf);
+            baseInfo->destroyOptions(optionBuf);
+            return succeeded;
         }
+    }
+
+    if (jsonDoc)
+    {
+        yyjson_mut_val* module = yyjson_mut_arr_add_obj(jsonDoc, jsonDoc->root);
+        yyjson_mut_obj_add_strcpy(jsonDoc, module, "type", type);
+        yyjson_mut_obj_add_str(jsonDoc, module, "error", "Unknown module type");
+    }
+    else
+    {
+        FFModuleArgs moduleArgs;
+        ffOptionInitModuleArg(&moduleArgs, "");
+        ffPrintError(type, 0, &moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown module type");
+        ffOptionDestroyModuleArg(&moduleArgs);
     }
     return false;
 }
 
 static void prepareModuleJsonObject(const char* type, yyjson_val* module)
 {
-    FFconfig* cfg = &instance.config;
     switch (type[0])
     {
         case 'b': case 'B': {
@@ -142,32 +161,40 @@ static void prepareModuleJsonObject(const char* type, yyjson_val* module)
         case 'd': case 'D': {
             if (ffStrEqualsIgnCase(type, FF_DISKIO_MODULE_NAME))
             {
-                if (module) cfg->modules.diskIo.moduleInfo.parseJsonObject(&cfg->modules.diskIo, module);
-                ffPrepareDiskIO(&cfg->modules.diskIo);
+                __attribute__((__cleanup__(ffDestroyDiskIOOptions))) FFDiskIOOptions options;
+                ffInitDiskIOOptions(&options);
+                if (module) ffDiskIOModuleInfo.parseJsonObject(&options, module);
+                ffPrepareDiskIO(&options);
             }
             break;
         }
         case 'n': case 'N': {
             if (ffStrEqualsIgnCase(type, FF_NETIO_MODULE_NAME))
             {
-                if (module) cfg->modules.netIo.moduleInfo.parseJsonObject(&cfg->modules.netIo, module);
-                ffPrepareNetIO(&cfg->modules.netIo);
+                __attribute__((__cleanup__(ffDestroyNetIOOptions))) FFNetIOOptions options;
+                ffInitNetIOOptions(&options);
+                if (module) ffNetIOModuleInfo.parseJsonObject(&options, module);
+                ffPrepareNetIO(&options);
             }
             break;
         }
         case 'p': case 'P': {
             if (ffStrEqualsIgnCase(type, FF_PUBLICIP_MODULE_NAME))
             {
-                if (module) cfg->modules.publicIP.moduleInfo.parseJsonObject(&cfg->modules.publicIP, module);
-                ffPreparePublicIp(&cfg->modules.publicIP);
+                __attribute__((__cleanup__(ffDestroyPublicIpOptions))) FFPublicIPOptions options;
+                ffInitPublicIpOptions(&options);
+                if (module) ffPublicIPModuleInfo.parseJsonObject(&options, module);
+                ffPreparePublicIp(&options);
             }
             break;
         }
         case 'w': case 'W': {
             if (ffStrEqualsIgnCase(type, FF_WEATHER_MODULE_NAME))
             {
-                if (module) cfg->modules.weather.moduleInfo.parseJsonObject(&cfg->modules.weather, module);
-                ffPrepareWeather(&cfg->modules.weather);
+                __attribute__((__cleanup__(ffDestroyWeatherOptions))) FFWeatherOptions options;
+                ffInitWeatherOptions(&options);
+                if (module) ffWeatherModuleInfo.parseJsonObject(&options, module);
+                ffPrepareWeather(&options);
             }
             break;
         }
@@ -205,6 +232,7 @@ static const char* printJsonConfig(bool prepare, yyjson_mut_doc* jsonDoc)
     if (!modules) return NULL;
     if (!yyjson_is_arr(modules)) return "Property 'modules' must be an array of strings or objects";
 
+    bool succeeded = true;
     int32_t thres = instance.config.display.stat;
     yyjson_val* item;
     size_t idx, max;
@@ -241,6 +269,15 @@ static const char* printJsonConfig(bool prepare, yyjson_mut_doc* jsonDoc)
                 arch = yyjson_obj_get(conditions, "!arch");
                 if (arch && matchesJsonArray(ffVersionResult.architecture, arch))
                     continue;
+
+                yyjson_val* previousSucceeded = yyjson_obj_get(conditions, "succeeded");
+                if (previousSucceeded && !unsafe_yyjson_is_null(previousSucceeded))
+                {
+                    if (!unsafe_yyjson_is_bool(previousSucceeded))
+                        return "Property 'succeeded' in 'condition' must be a boolean";
+                    if (succeeded != unsafe_yyjson_get_bool(previousSucceeded))
+                        continue;
+                }
             }
 
             type = yyjson_get_str(yyjson_obj_get(module, "type"));
@@ -253,8 +290,8 @@ static const char* printJsonConfig(bool prepare, yyjson_mut_doc* jsonDoc)
 
         if(prepare)
             prepareModuleJsonObject(type, module);
-        else if(!parseModuleJsonObject(type, module, jsonDoc))
-            return "Unknown module type";
+        else
+            succeeded = parseModuleJsonObject(type, module, jsonDoc);
 
         if(!prepare && thres >= 0)
         {

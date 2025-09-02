@@ -4,8 +4,9 @@
 #include "modules/board/board.h"
 #include "util/stringUtils.h"
 
-void ffPrintBoard(FFBoardOptions* options)
+bool ffPrintBoard(FFBoardOptions* options)
 {
+    bool success = false;
     FFBoardResult result;
     ffStrbufInit(&result.name);
     ffStrbufInit(&result.vendor);
@@ -42,12 +43,14 @@ void ffPrintBoard(FFBoardOptions* options)
             FF_FORMAT_ARG(result.serial, "serial"),
         }));
     }
+    success = true;
 
 exit:
     ffStrbufDestroy(&result.name);
     ffStrbufDestroy(&result.vendor);
     ffStrbufDestroy(&result.version);
     ffStrbufDestroy(&result.serial);
+    return success;
 }
 
 void ffParseBoardJsonObject(FFBoardOptions* options, yyjson_val* module)
@@ -65,14 +68,12 @@ void ffParseBoardJsonObject(FFBoardOptions* options, yyjson_val* module)
 
 void ffGenerateBoardJsonConfig(FFBoardOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyBoardOptions))) FFBoardOptions defaultOptions;
-    ffInitBoardOptions(&defaultOptions);
-
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 }
 
-void ffGenerateBoardJsonResult(FF_MAYBE_UNUSED FFBoardOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateBoardJsonResult(FF_MAYBE_UNUSED FFBoardOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
+    bool success = false;
     FFBoardResult board;
     ffStrbufInit(&board.name);
     ffStrbufInit(&board.vendor);
@@ -98,17 +99,31 @@ void ffGenerateBoardJsonResult(FF_MAYBE_UNUSED FFBoardOptions* options, yyjson_m
     yyjson_mut_obj_add_strbuf(doc, obj, "vendor", &board.vendor);
     yyjson_mut_obj_add_strbuf(doc, obj, "version", &board.version);
     yyjson_mut_obj_add_strbuf(doc, obj, "serial", &board.serial);
+    success = true;
 
 exit:
     ffStrbufDestroy(&board.name);
     ffStrbufDestroy(&board.vendor);
     ffStrbufDestroy(&board.version);
     ffStrbufDestroy(&board.serial);
+    return success;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitBoardOptions(FFBoardOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "");
+}
+
+void ffDestroyBoardOptions(FFBoardOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffBoardModuleInfo = {
     .name = FF_BOARD_MODULE_NAME,
     .description = "Print motherboard name and other info",
+    .initOptions = (void*) ffInitBoardOptions,
+    .destroyOptions = (void*) ffDestroyBoardOptions,
     .parseJsonObject = (void*) ffParseBoardJsonObject,
     .printModule = (void*) ffPrintBoard,
     .generateJsonResult = (void*) ffGenerateBoardJsonResult,
@@ -120,14 +135,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Board serial number", "serial"},
     }))
 };
-
-void ffInitBoardOptions(FFBoardOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "");
-}
-
-void ffDestroyBoardOptions(FFBoardOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

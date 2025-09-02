@@ -97,7 +97,7 @@ static void printBtrfs(FFBtrfsOptions* options, FFBtrfsResult* result, uint8_t i
     }
 }
 
-void ffPrintBtrfs(FFBtrfsOptions* options)
+bool ffPrintBtrfs(FFBtrfsOptions* options)
 {
     FF_LIST_AUTO_DESTROY results = ffListCreate(sizeof(FFBtrfsResult));
 
@@ -106,12 +106,12 @@ void ffPrintBtrfs(FFBtrfsOptions* options)
     if (error)
     {
         ffPrintError(FF_BTRFS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
     if(results.length == 0)
     {
         ffPrintError(FF_BTRFS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", "No btrfs drive found");
-        return;
+        return false;
     }
 
     for(uint32_t i = 0; i < results.length; i++)
@@ -128,6 +128,8 @@ void ffPrintBtrfs(FFBtrfsOptions* options)
         ffStrbufDestroy(&result->devices);
         ffStrbufDestroy(&result->features);
     }
+
+    return true;
 }
 
 void ffParseBtrfsJsonObject(FFBtrfsOptions* options, yyjson_val* module)
@@ -148,15 +150,12 @@ void ffParseBtrfsJsonObject(FFBtrfsOptions* options, yyjson_val* module)
 
 void ffGenerateBtrfsJsonConfig(FFBtrfsOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyBtrfsOptions))) FFBtrfsOptions defaultOptions;
-    ffInitBtrfsOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
-
-    ffPercentGenerateJsonConfig(doc, module, defaultOptions.percent, options->percent);
+    ffPercentGenerateJsonConfig(doc, module, options->percent);
 }
 
-void ffGenerateBtrfsJsonResult(FF_MAYBE_UNUSED FFBtrfsOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateBtrfsJsonResult(FF_MAYBE_UNUSED FFBtrfsOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FF_LIST_AUTO_DESTROY results = ffListCreate(sizeof(FFBtrfsResult));
 
@@ -164,7 +163,7 @@ void ffGenerateBtrfsJsonResult(FF_MAYBE_UNUSED FFBtrfsOptions* options, yyjson_m
     if (error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -198,11 +197,26 @@ void ffGenerateBtrfsJsonResult(FF_MAYBE_UNUSED FFBtrfsOptions* options, yyjson_m
         ffStrbufDestroy(&btrfs->devices);
         ffStrbufDestroy(&btrfs->features);
     }
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitBtrfsOptions(FFBtrfsOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "󱑛");
+    options->percent = (FFPercentageModuleConfig) { 50, 80, 0 };
+}
+
+void ffDestroyBtrfsOptions(FFBtrfsOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffBtrfsModuleInfo = {
     .name = FF_BTRFS_MODULE_NAME,
     .description = "Print Linux BTRFS volumes",
+    .initOptions = (void*) ffInitBtrfsOptions,
+    .destroyOptions = (void*) ffDestroyBtrfsOptions,
     .parseJsonObject = (void*) ffParseBtrfsJsonObject,
     .printModule = (void*) ffPrintBtrfs,
     .generateJsonResult = (void*) ffGenerateBtrfsJsonResult,
@@ -223,15 +237,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Sector size", "sector-size"},
     }))
 };
-
-void ffInitBtrfsOptions(FFBtrfsOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "󱑛");
-    options->percent = (FFPercentageModuleConfig) { 50, 80, 0 };
-}
-
-void ffDestroyBtrfsOptions(FFBtrfsOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

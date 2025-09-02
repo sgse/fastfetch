@@ -6,7 +6,7 @@
 #include "modules/loadavg/loadavg.h"
 #include "util/stringUtils.h"
 
-void ffPrintLoadavg(FFLoadavgOptions* options)
+bool ffPrintLoadavg(FFLoadavgOptions* options)
 {
     double result[3] = { 0.0 / 0.0, 0.0 / 0.0, 0.0 / 0.0 };
 
@@ -14,7 +14,7 @@ void ffPrintLoadavg(FFLoadavgOptions* options)
     if(error)
     {
         ffPrintError(FF_LOADAVG_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
 
     if(options->moduleArgs.outputFormat.length == 0)
@@ -88,6 +88,8 @@ void ffPrintLoadavg(FFLoadavgOptions* options)
             FF_FORMAT_ARG(result[2], "loadavg3"),
         }));
     }
+
+    return true;
 }
 
 void ffParseLoadavgJsonObject(FFLoadavgOptions* options, yyjson_val* module)
@@ -120,21 +122,16 @@ void ffParseLoadavgJsonObject(FFLoadavgOptions* options, yyjson_val* module)
 
 void ffGenerateLoadavgJsonConfig(FFLoadavgOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyLoadavgOptions))) FFLoadavgOptions defaultOptions;
-    ffInitLoadavgOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    yyjson_mut_obj_add_uint(doc, module, "ndigits", options->ndigits);
 
-    if (defaultOptions.ndigits != options->ndigits)
-        yyjson_mut_obj_add_uint(doc, module, "ndigits", options->ndigits);
+    yyjson_mut_obj_add_bool(doc, module, "compact", options->compact);
 
-    if (defaultOptions.compact != options->compact)
-        yyjson_mut_obj_add_bool(doc, module, "compact", options->compact);
-
-    ffPercentGenerateJsonConfig(doc, module, defaultOptions.percent, options->percent);
+    ffPercentGenerateJsonConfig(doc, module, options->percent);
 }
 
-void ffGenerateLoadavgJsonResult(FF_MAYBE_UNUSED FFLoadavgOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateLoadavgJsonResult(FF_MAYBE_UNUSED FFLoadavgOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     double result[3] = { 0.0 / 0.0, 0.0 / 0.0, 0.0 / 0.0 };
 
@@ -142,31 +139,18 @@ void ffGenerateLoadavgJsonResult(FF_MAYBE_UNUSED FFLoadavgOptions* options, yyjs
     if(error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
     for (size_t i = 0; i < 3; i++)
         yyjson_mut_arr_add_real(doc, arr, result[i]);
-}
 
-static FFModuleBaseInfo ffModuleInfo = {
-    .name = FF_LOADAVG_MODULE_NAME,
-    .description = "Print system load averages",
-    .parseJsonObject = (void*) ffParseLoadavgJsonObject,
-    .printModule = (void*) ffPrintLoadavg,
-    .generateJsonResult = (void*) ffGenerateLoadavgJsonResult,
-    .generateJsonConfig = (void*) ffGenerateLoadavgJsonConfig,
-    .formatArgs = FF_FORMAT_ARG_LIST(((FFModuleFormatArg[]) {
-        {"Load average over 1min", "loadavg1"},
-        {"Load average over 5min", "loadavg2"},
-        {"Load average over 15min", "loadavg3"},
-    }))
-};
+    return true;
+}
 
 void ffInitLoadavgOptions(FFLoadavgOptions* options)
 {
-    options->moduleInfo = ffModuleInfo;
     ffOptionInitModuleArg(&options->moduleArgs, "");
 
     options->percent = (FFPercentageModuleConfig) { 50, 80, 0 };
@@ -178,3 +162,19 @@ void ffDestroyLoadavgOptions(FFLoadavgOptions* options)
 {
     ffOptionDestroyModuleArg(&options->moduleArgs);
 }
+
+FFModuleBaseInfo ffLoadavgModuleInfo = {
+    .name = FF_LOADAVG_MODULE_NAME,
+    .description = "Print system load averages",
+    .initOptions = (void*) ffInitLoadavgOptions,
+    .destroyOptions = (void*) ffDestroyLoadavgOptions,
+    .parseJsonObject = (void*) ffParseLoadavgJsonObject,
+    .printModule = (void*) ffPrintLoadavg,
+    .generateJsonResult = (void*) ffGenerateLoadavgJsonResult,
+    .generateJsonConfig = (void*) ffGenerateLoadavgJsonConfig,
+    .formatArgs = FF_FORMAT_ARG_LIST(((FFModuleFormatArg[]) {
+        {"Load average over 1min", "loadavg1"},
+        {"Load average over 5min", "loadavg2"},
+        {"Load average over 15min", "loadavg3"},
+    }))
+};

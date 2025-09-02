@@ -7,7 +7,7 @@
 
 #pragma GCC diagnostic ignored "-Wformat" // warning: unknown conversion type character 'F' in format
 
-void ffPrintUsers(FFUsersOptions* options)
+bool ffPrintUsers(FFUsersOptions* options)
 {
     FF_LIST_AUTO_DESTROY users = ffListCreate(sizeof(FFUserResult));
 
@@ -16,13 +16,13 @@ void ffPrintUsers(FFUsersOptions* options)
     if(error)
     {
         ffPrintError(FF_USERS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
 
     if(users.length == 0)
     {
         ffPrintError(FF_USERS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", "Unable to detect any users");
-        return;
+        return false;
     }
 
     if(options->moduleArgs.outputFormat.length == 0)
@@ -105,6 +105,8 @@ void ffPrintUsers(FFUsersOptions* options)
         ffStrbufDestroy(&user->sessionName);
         ffStrbufDestroy(&user->name);
     }
+
+    return true;
 }
 
 void ffParseUsersJsonObject(FFUsersOptions* options, yyjson_val* module)
@@ -137,19 +139,14 @@ void ffParseUsersJsonObject(FFUsersOptions* options, yyjson_val* module)
 
 void ffGenerateUsersJsonConfig(FFUsersOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyUsersOptions))) FFUsersOptions defaultOptions;
-    ffInitUsersOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    yyjson_mut_obj_add_bool(doc, module, "compact", options->compact);
 
-    if (options->compact != defaultOptions.compact)
-        yyjson_mut_obj_add_bool(doc, module, "compact", options->compact);
-
-    if (options->myselfOnly != defaultOptions.myselfOnly)
-        yyjson_mut_obj_add_bool(doc, module, "myselfOnly", options->myselfOnly);
+    yyjson_mut_obj_add_bool(doc, module, "myselfOnly", options->myselfOnly);
 }
 
-void ffGenerateUsersJsonResult(FFUsersOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateUsersJsonResult(FFUsersOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FF_LIST_AUTO_DESTROY results = ffListCreate(sizeof(FFUserResult));
 
@@ -158,7 +155,7 @@ void ffGenerateUsersJsonResult(FFUsersOptions* options, yyjson_mut_doc* doc, yyj
     if(error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -183,11 +180,28 @@ void ffGenerateUsersJsonResult(FFUsersOptions* options, yyjson_mut_doc* doc, yyj
         ffStrbufDestroy(&user->sessionName);
         ffStrbufDestroy(&user->name);
     }
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitUsersOptions(FFUsersOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "");
+
+    options->compact = false;
+    options->myselfOnly = false;
+}
+
+void ffDestroyUsersOptions(FFUsersOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffUsersModuleInfo = {
     .name = FF_USERS_MODULE_NAME,
     .description = "Print users currently logged in",
+    .initOptions = (void*) ffInitUsersOptions,
+    .destroyOptions = (void*) ffDestroyUsersOptions,
     .parseJsonObject = (void*) ffParseUsersJsonObject,
     .printModule = (void*) ffPrintUsers,
     .generateJsonResult = (void*) ffGenerateUsersJsonResult,
@@ -208,17 +222,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Years fraction after login", "years-fraction"},
     }))
 };
-
-void ffInitUsersOptions(FFUsersOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "");
-
-    options->compact = false;
-    options->myselfOnly = false;
-}
-
-void ffDestroyUsersOptions(FFUsersOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}

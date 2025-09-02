@@ -101,8 +101,9 @@ static void printCPUCacheCompact(const FFCPUCacheResult* result, FFCPUCacheOptio
     }
 }
 
-void ffPrintCPUCache(FFCPUCacheOptions* options)
+bool ffPrintCPUCache(FFCPUCacheOptions* options)
 {
+    bool success = false;
     FFCPUCacheResult result = {
         .caches = {
             ffListCreate(sizeof(FFCPUCache)),
@@ -124,12 +125,15 @@ void ffPrintCPUCache(FFCPUCacheOptions* options)
         printCPUCacheNormal(&result, options);
     else
         printCPUCacheCompact(&result, options);
+    success = true;
 
 exit:
     ffListDestroy(&result.caches[0]);
     ffListDestroy(&result.caches[1]);
     ffListDestroy(&result.caches[2]);
     ffListDestroy(&result.caches[3]);
+
+    return success;
 }
 
 void ffParseCPUCacheJsonObject(FFCPUCacheOptions* options, yyjson_val* module)
@@ -153,14 +157,14 @@ void ffParseCPUCacheJsonObject(FFCPUCacheOptions* options, yyjson_val* module)
 
 void ffGenerateCPUCacheJsonConfig(FFCPUCacheOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyCPUCacheOptions))) FFCPUCacheOptions defaultOptions;
-    ffInitCPUCacheOptions(&defaultOptions);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    yyjson_mut_obj_add_bool(doc, module, "compact", options->compact);
 }
 
-void ffGenerateCPUCacheJsonResult(FF_MAYBE_UNUSED FFCPUCacheOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateCPUCacheJsonResult(FF_MAYBE_UNUSED FFCPUCacheOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
+    bool success = false;
     FFCPUCacheResult result = {
         .caches = {
             ffListCreate(sizeof(FFCPUCache)),
@@ -200,30 +204,18 @@ void ffGenerateCPUCacheJsonResult(FF_MAYBE_UNUSED FFCPUCacheOptions* options, yy
             yyjson_mut_obj_add_str(doc, item, "type", typeStr);
         }
     }
+    success = true;
 
 exit:
     ffListDestroy(&result.caches[0]);
     ffListDestroy(&result.caches[1]);
     ffListDestroy(&result.caches[2]);
     ffListDestroy(&result.caches[3]);
+    return success;
 }
-
-static FFModuleBaseInfo ffModuleInfo = {
-    .name = FF_CPUCACHE_MODULE_NAME,
-    .description = "Print CPU cache sizes",
-    .parseJsonObject = (void*) ffParseCPUCacheJsonObject,
-    .printModule = (void*) ffPrintCPUCache,
-    .generateJsonResult = (void*) ffGenerateCPUCacheJsonResult,
-    .generateJsonConfig = (void*) ffGenerateCPUCacheJsonConfig,
-    .formatArgs = FF_FORMAT_ARG_LIST(((FFModuleFormatArg[]) {
-        {"Separate result", "result"},
-        {"Sum result", "sum"},
-    }))
-};
 
 void ffInitCPUCacheOptions(FFCPUCacheOptions* options)
 {
-    options->moduleInfo = ffModuleInfo;
     ffOptionInitModuleArg(&options->moduleArgs, "");
 
     options->compact = false;
@@ -233,3 +225,18 @@ void ffDestroyCPUCacheOptions(FFCPUCacheOptions* options)
 {
     ffOptionDestroyModuleArg(&options->moduleArgs);
 }
+
+FFModuleBaseInfo ffCPUCacheModuleInfo = {
+    .name = FF_CPUCACHE_MODULE_NAME,
+    .description = "Print CPU cache sizes",
+    .initOptions = (void*) ffInitCPUCacheOptions,
+    .destroyOptions = (void*) ffDestroyCPUCacheOptions,
+    .parseJsonObject = (void*) ffParseCPUCacheJsonObject,
+    .printModule = (void*) ffPrintCPUCache,
+    .generateJsonResult = (void*) ffGenerateCPUCacheJsonResult,
+    .generateJsonConfig = (void*) ffGenerateCPUCacheJsonConfig,
+    .formatArgs = FF_FORMAT_ARG_LIST(((FFModuleFormatArg[]) {
+        {"Separate result", "result"},
+        {"Sum result", "sum"},
+    }))
+};

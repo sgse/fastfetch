@@ -21,7 +21,7 @@ static void printDevice(FFKeyboardOptions* options, const FFKeyboardDevice* devi
     }
 }
 
-void ffPrintKeyboard(FFKeyboardOptions* options)
+bool ffPrintKeyboard(FFKeyboardOptions* options)
 {
     FF_LIST_AUTO_DESTROY result = ffListCreate(sizeof(FFKeyboardDevice));
 
@@ -30,13 +30,13 @@ void ffPrintKeyboard(FFKeyboardOptions* options)
     if(error)
     {
         ffPrintError(FF_KEYBOARD_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
-        return;
+        return false;
     }
 
     if(!result.length)
     {
         ffPrintError(FF_KEYBOARD_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "No devices detected");
-        return;
+        return false;
     }
 
     uint8_t index = 0;
@@ -46,6 +46,8 @@ void ffPrintKeyboard(FFKeyboardOptions* options)
         ffStrbufDestroy(&device->serial);
         ffStrbufDestroy(&device->name);
     }
+
+    return true;
 }
 
 void ffParseKeyboardJsonObject(FFKeyboardOptions* options, yyjson_val* module)
@@ -63,13 +65,10 @@ void ffParseKeyboardJsonObject(FFKeyboardOptions* options, yyjson_val* module)
 
 void ffGenerateKeyboardJsonConfig(FFKeyboardOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
-    __attribute__((__cleanup__(ffDestroyKeyboardOptions))) FFKeyboardOptions defaultOptions;
-    ffInitKeyboardOptions(&defaultOptions);
-
-    ffJsonConfigGenerateModuleArgsConfig(doc, module, &defaultOptions.moduleArgs, &options->moduleArgs);
+    ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 }
 
-void ffGenerateKeyboardJsonResult(FF_MAYBE_UNUSED FFKeyboardOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
+bool ffGenerateKeyboardJsonResult(FF_MAYBE_UNUSED FFKeyboardOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
 {
     FF_LIST_AUTO_DESTROY result = ffListCreate(sizeof(FFKeyboardDevice));
 
@@ -78,7 +77,7 @@ void ffGenerateKeyboardJsonResult(FF_MAYBE_UNUSED FFKeyboardOptions* options, yy
     if(error)
     {
         yyjson_mut_obj_add_str(doc, module, "error", error);
-        return;
+        return false;
     }
 
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(doc, module, "result");
@@ -94,11 +93,25 @@ void ffGenerateKeyboardJsonResult(FF_MAYBE_UNUSED FFKeyboardOptions* options, yy
         ffStrbufDestroy(&device->serial);
         ffStrbufDestroy(&device->name);
     }
+
+    return true;
 }
 
-static FFModuleBaseInfo ffModuleInfo = {
+void ffInitKeyboardOptions(FFKeyboardOptions* options)
+{
+    ffOptionInitModuleArg(&options->moduleArgs, "");
+}
+
+void ffDestroyKeyboardOptions(FFKeyboardOptions* options)
+{
+    ffOptionDestroyModuleArg(&options->moduleArgs);
+}
+
+FFModuleBaseInfo ffKeyboardModuleInfo = {
     .name = FF_KEYBOARD_MODULE_NAME,
     .description = "List (connected) keyboards",
+    .initOptions = (void*) ffInitKeyboardOptions,
+    .destroyOptions = (void*) ffDestroyKeyboardOptions,
     .parseJsonObject = (void*) ffParseKeyboardJsonObject,
     .printModule = (void*) ffPrintKeyboard,
     .generateJsonResult = (void*) ffGenerateKeyboardJsonResult,
@@ -108,14 +121,3 @@ static FFModuleBaseInfo ffModuleInfo = {
         {"Serial number", "serial"},
     }))
 };
-
-void ffInitKeyboardOptions(FFKeyboardOptions* options)
-{
-    options->moduleInfo = ffModuleInfo;
-    ffOptionInitModuleArg(&options->moduleArgs, "");
-}
-
-void ffDestroyKeyboardOptions(FFKeyboardOptions* options)
-{
-    ffOptionDestroyModuleArg(&options->moduleArgs);
-}
