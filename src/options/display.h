@@ -1,7 +1,9 @@
 #pragma once
 
+#include "common/ffdata.h"
 #include "common/percent.h"
-#include "util/FFstrbuf.h"
+#include "common/FFstrbuf.h"
+#include "common/FFlist.h"
 
 typedef enum __attribute__((__packed__)) FFSizeBinaryPrefixType
 {
@@ -28,8 +30,8 @@ typedef enum __attribute__((__packed__)) FFSpaceBeforeUnitType
 typedef enum __attribute__((__packed__)) FFFractionTrailingZerosType
 {
     FF_FRACTION_TRAILING_ZEROS_TYPE_DEFAULT,
-    FF_FRACTION_TRAILING_ZEROS_TYPE_SHOW,
-    FF_FRACTION_TRAILING_ZEROS_TYPE_HIDE,
+    FF_FRACTION_TRAILING_ZEROS_TYPE_ALWAYS,
+    FF_FRACTION_TRAILING_ZEROS_TYPE_NEVER,
 } FFFractionTrailingZerosType;
 
 typedef struct FFOptionsDisplay
@@ -97,4 +99,4 @@ const char* ffOptionsParseDisplayJsonConfig(FFOptionsDisplay* options, yyjson_va
 bool ffOptionsParseDisplayCommandLine(FFOptionsDisplay* options, const char* key, const char* value);
 void ffOptionsInitDisplay(FFOptionsDisplay* options);
 void ffOptionsDestroyDisplay(FFOptionsDisplay* options);
-void ffOptionsGenerateDisplayJsonConfig(FFOptionsDisplay* options, yyjson_mut_doc* doc);
+void ffOptionsGenerateDisplayJsonConfig(FFdata* data, FFOptionsDisplay* options);

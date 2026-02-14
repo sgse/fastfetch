@@ -54,7 +54,7 @@ static const char* getSshdVersion(FFstrbuf* version)
 
 static const char* getSddmVersion(FFstrbuf* version)
 {
-    FF_LIBRARY_LOAD(zlib, "dlopen libz failed", "libz" FF_LIBRARY_EXTENSION, 2)
+    FF_LIBRARY_LOAD_MESSAGE(zlib, "libz" FF_LIBRARY_EXTENSION, 2)
     FF_LIBRARY_LOAD_SYMBOL_MESSAGE(zlib, gzopen)
     FF_LIBRARY_LOAD_SYMBOL_MESSAGE(zlib, gzread)
     FF_LIBRARY_LOAD_SYMBOL_MESSAGE(zlib, gzerror)
@@ -142,7 +142,7 @@ const char* ffDetectLM(FFLMResult* result)
     {
         // On some incorrectly configured systems, $XDG_SESSION_ID is not set. Try finding it ourself
         // WARNING: This is private data. Do not parse
-        ffStrbufSetF(&path, FF_SYSTEMD_USERS_PATH "%d", getuid());
+        ffStrbufSetF(&path, FF_SYSTEMD_USERS_PATH "%d", instance.state.platform.uid);
 
         // This is actually buggy, and assumes current user is using DE
         // `sd_pid_get_session` can be a better option, but we need to find a pid to use

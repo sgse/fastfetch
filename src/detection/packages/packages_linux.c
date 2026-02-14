@@ -1,10 +1,10 @@
 #include "packages.h"
-#include "common/io/io.h"
+#include "common/io.h"
 #include "common/parsing.h"
 #include "common/properties.h"
 #include "common/settings.h"
+#include "common/stringUtils.h"
 #include "detection/os/os.h"
-#include "util/stringUtils.h"
 
 static uint32_t getNumElements(FFstrbuf* baseDir, const char* dirname, bool isdir)
 {
@@ -261,7 +261,7 @@ static uint32_t getAMUser(void)
     if (instance.state.platform.configDirs.length == 0) return 0;
 
     // check if $XDG_CONFIG_HOME/appman/appman-config exists
-    FFstrbuf* baseDir = FF_LIST_GET(FFstrbuf, instance.state.platform.configDirs, 0);
+    FFstrbuf* baseDir = FF_LIST_FIRST(FFstrbuf, instance.state.platform.configDirs);
     uint32_t baseLen = baseDir->length;
     ffStrbufAppendS(baseDir, "appman/appman-config");
     FF_STRBUF_AUTO_DESTROY packagesPath = ffStrbufCreate();
@@ -412,6 +412,45 @@ static uint32_t getFlatpakPackages(FFstrbuf* baseDir, const char* dirname)
     return num_elements;
 }
 
+static uint32_t getPacmanPackages(FFstrbuf* baseDir)
+{
+    FF_STRBUF_AUTO_DESTROY dbPath = ffStrbufCreate();
+    FF_STRBUF_AUTO_DESTROY rootDir = ffStrbufCreate();
+
+    // Get path to pacman.conf
+    uint32_t baseDirLen = baseDir->length;
+    ffStrbufAppendS(baseDir, "/etc/pacman.conf");
+
+    bool confFound = ffParsePropFileValues(baseDir->chars, 2, (FFpropquery[]){
+        { "DBPath =", &dbPath },
+        { "RootDir =", &rootDir },
+    });
+    ffStrbufSubstrBefore(baseDir, baseDirLen);
+
+    if (confFound)
+    {
+        if (dbPath.length > 0)
+        {
+            // If DBPath is specified, use it
+            ffStrbufEnsureEndsWithC(&dbPath, '/');
+            ffStrbufAppendS(&dbPath, "local");
+        }
+        else if (rootDir.length > 0)
+        {
+            // ... otherwise, use RootDir
+            ffStrbufDestroy(&dbPath);
+            ffStrbufInitMove(&dbPath, &rootDir);
+            ffStrbufEnsureEndsWithC(&dbPath, '/');
+            ffStrbufAppendS(&dbPath, "var/lib/pacman/local");
+        }
+    }
+
+    if (dbPath.length == 0)
+        ffStrbufSetStatic(&dbPath, "/var/lib/pacman/local");
+
+    return getNumElements(baseDir, dbPath.chars, true);
+}
+
 static void getPackageCounts(FFstrbuf* baseDir, FFPackagesResult* packageCounts, FFPackagesOptions* options)
 {
     if (!(options->disabled & FF_PACKAGES_FLAG_APK_BIT)) packageCounts->apk += getNumStrings(baseDir, "/lib/apk/db/installed", "C:Q", "apk");
@@ -420,12 +459,13 @@ static void getPackageCounts(FFstrbuf* baseDir, FFPackagesResult* packageCounts,
     if (!(options->disabled & FF_PACKAGES_FLAG_EMERGE_BIT)) packageCounts->emerge += countFilesRecursive(baseDir, "/var/db/pkg", "SIZE");
     if (!(options->disabled & FF_PACKAGES_FLAG_EOPKG_BIT)) packageCounts->eopkg += getNumElements(baseDir, "/var/lib/eopkg/package", true);
     if (!(options->disabled & FF_PACKAGES_FLAG_FLATPAK_BIT)) packageCounts->flatpakSystem += getFlatpakPackages(baseDir, "/var/lib");
+    if (!(options->disabled & FF_PACKAGES_FLAG_KISS_BIT)) packageCounts->kiss += getNumElements(baseDir, "/var/db/kiss/installed", true);
     if (!(options->disabled & FF_PACKAGES_FLAG_NIX_BIT))
     {
         packageCounts->nixDefault += ffPackagesGetNix(baseDir, "/nix/var/nix/profiles/default");
         packageCounts->nixSystem += ffPackagesGetNix(baseDir, "/run/current-system");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_PACMAN_BIT)) packageCounts->pacman += getNumElements(baseDir, "/var/lib/pacman/local", true);
+    if (!(options->disabled & FF_PACKAGES_FLAG_PACMAN_BIT)) packageCounts->pacman += getPacmanPackages(baseDir);
     if (!(options->disabled & FF_PACKAGES_FLAG_LPKGBUILD_BIT)) packageCounts->lpkgbuild += getNumElements(baseDir, "/opt/Loc-OS-LPKG/lpkgbuild/remove", false);
     if (!(options->disabled & FF_PACKAGES_FLAG_PKGTOOL_BIT)) packageCounts->pkgtool += getNumElements(baseDir, "/var/log/packages", false);
     if (!(options->disabled & FF_PACKAGES_FLAG_RPM_BIT))

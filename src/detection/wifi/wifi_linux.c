@@ -1,10 +1,10 @@
 #include "wifi.h"
 #include "common/dbus.h"
-#include "common/io/io.h"
+#include "common/io.h"
 #include "common/processing.h"
 #include "common/properties.h"
-#include "util/stringUtils.h"
-#include "util/debug.h"
+#include "common/stringUtils.h"
+#include "common/debug.h"
 
 #include <net/if.h>
 
@@ -57,7 +57,7 @@ static const char* detectWifiWithNm(FFWifiResult* item, FFstrbuf* buffer)
 
     {
         FF_DEBUG("Getting device by IP interface name");
-        DBusMessage* device = ffDBusGetMethodReply(&dbus, "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "GetDeviceByIpIface", item->inf.description.chars);
+        DBusMessage* device = ffDBusGetMethodReply(&dbus, "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "GetDeviceByIpIface", item->inf.description.chars, NULL);
         if(!device)
         {
             FF_DEBUG("GetDeviceByIpIface failed for interface %s", item->inf.description.chars);

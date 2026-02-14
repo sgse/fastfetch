@@ -1,7 +1,7 @@
 #include "logo/logo.h"
 
 #include "common/jsonconfig.h"
-#include "util/stringUtils.h"
+#include "common/stringUtils.h"
 
 void ffOptionsInitLogo(FFOptionsLogo* options)
 {
@@ -466,8 +466,9 @@ const char* ffOptionsParseLogoJsonConfig(FFOptionsLogo* options, yyjson_val* roo
     return NULL;
 }
 
-void ffOptionsGenerateLogoJsonConfig(FFOptionsLogo* options, yyjson_mut_doc* doc)
+void ffOptionsGenerateLogoJsonConfig(FFdata* data, FFOptionsLogo* options)
 {
+    yyjson_mut_doc* doc = data->resultDoc;
     yyjson_mut_val* obj = yyjson_mut_obj(doc);
 
     switch (options->type)

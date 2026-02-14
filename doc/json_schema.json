@@ -318,7 +318,7 @@
             "type": "string"
         },
         "cpuFormat": {
-            "description": "Output format of the module `CPU`. See Wiki for formatting syntax\n    1. {name}: Name\n    2. {vendor}: Vendor\n    3. {cores-physical}: Physical core count\n    4. {cores-logical}: Logical core count\n    5. {cores-online}: Online core count\n    6. {freq-base}: Base frequency (formatted)\n    7. {freq-max}: Max frequency (formatted)\n    8. {temperature}: Temperature (formatted)\n    9. {core-types}: Logical core count grouped by frequency\n    10. {packages}: Processor package count\n    11. {march}: X86-64 CPU microarchitecture",
+            "description": "Output format of the module `CPU`. See Wiki for formatting syntax\n    1. {name}: Name\n    2. {vendor}: Vendor\n    3. {cores-physical}: Physical core count\n    4. {cores-logical}: Logical core count\n    5. {cores-online}: Online core count\n    6. {freq-base}: Base frequency (formatted)\n    7. {freq-max}: Max frequency (formatted)\n    8. {temperature}: Temperature (formatted)\n    9. {core-types}: Logical core count grouped by frequency\n    10. {packages}: Processor package count\n    11. {march}: CPU microarchitecture\n    12. {numa-nodes}: NUMA node count",
             "type": "string"
         },
         "cpucacheFormat": {
@@ -442,7 +442,7 @@
             "type": "string"
         },
         "packagesFormat": {
-            "description": "Output format of the module `Packages`. See Wiki for formatting syntax\n    1. {all}: Number of all packages\n    2. {pacman}: Number of pacman packages\n    3. {pacman-branch}: Pacman branch on manjaro\n    4. {dpkg}: Number of dpkg packages\n    5. {rpm}: Number of rpm packages\n    6. {emerge}: Number of emerge packages\n    7. {eopkg}: Number of eopkg packages\n    8. {xbps}: Number of xbps packages\n    9. {nix-system}: Number of nix-system packages\n    10. {nix-user}: Number of nix-user packages\n    11. {nix-default}: Number of nix-default packages\n    12. {apk}: Number of apk packages\n    13. {pkg}: Number of pkg packages\n    14. {flatpak-system}: Number of flatpak-system app packages\n    15. {flatpak-user}: Number of flatpak-user app packages\n    16. {snap}: Number of snap packages\n    17. {brew}: Number of brew packages\n    18. {brew-cask}: Number of brew-cask packages\n    19. {macports}: Number of macports packages\n    20. {scoop-user}: Number of scoop-user packages\n    21. {scoop-global}: Number of scoop-global packages\n    22. {choco}: Number of choco packages\n    23. {pkgtool}: Number of pkgtool packages\n    24. {paludis}: Number of paludis packages\n    25. {winget}: Number of winget packages\n    26. {opkg}: Number of opkg packages\n    27. {am-system}: Number of am-system packages\n    28. {sorcery}: Number of sorcery packages\n    29. {lpkg}: Number of lpkg packages\n    30. {lpkgbuild}: Number of lpkgbuild packages\n    31. {guix-system}: Number of guix-system packages\n    32. {guix-user}: Number of guix-user packages\n    33. {guix-home}: Number of guix-home packages\n    34. {linglong}: Number of linglong packages\n    35. {pacstall}: Number of pacstall packages\n    36. {mport}: Number of mport packages\n    37. {am-user}: Number of am-user (aka appman) packages\n    38. {pkgsrc}: Number of pkgsrc packages\n    39. {hpkg-system}: Number of hpkg-system packages\n    40. {hpkg-user}: Number of hpkg-user packages\n    41. {pisi}: Number of pisi packages\n    42. {soar}: Number of soar packages\n    43. {nix-all}: Total number of all nix packages\n    44. {flatpak-all}: Total number of all flatpak app packages\n    45. {brew-all}: Total number of all brew packages\n    46. {guix-all}: Total number of all guix packages\n    47. {hpkg-all}: Total number of all hpkg packages",
+            "description": "Output format of the module `Packages`. See Wiki for formatting syntax\n    1. {all}: Number of all packages\n    2. {pacman}: Number of pacman packages\n    3. {pacman-branch}: Pacman branch on manjaro\n    4. {dpkg}: Number of dpkg packages\n    5. {rpm}: Number of rpm packages\n    6. {emerge}: Number of emerge packages\n    7. {eopkg}: Number of eopkg packages\n    8. {xbps}: Number of xbps packages\n    9. {nix-system}: Number of nix-system packages\n    10. {nix-user}: Number of nix-user packages\n    11. {nix-default}: Number of nix-default packages\n    12. {apk}: Number of apk packages\n    13. {pkg}: Number of pkg packages\n    14. {flatpak-system}: Number of flatpak-system app packages\n    15. {flatpak-user}: Number of flatpak-user app packages\n    16. {snap}: Number of snap packages\n    17. {brew}: Number of brew packages\n    18. {brew-cask}: Number of brew-cask packages\n    19. {macports}: Number of macports packages\n    20. {scoop-user}: Number of scoop-user packages\n    21. {scoop-global}: Number of scoop-global packages\n    22. {choco}: Number of choco packages\n    23. {pkgtool}: Number of pkgtool packages\n    24. {paludis}: Number of paludis packages\n    25. {winget}: Number of winget packages\n    26. {opkg}: Number of opkg packages\n    27. {am-system}: Number of am-system packages\n    28. {sorcery}: Number of sorcery packages\n    29. {lpkg}: Number of lpkg packages\n    30. {lpkgbuild}: Number of lpkgbuild packages\n    31. {guix-system}: Number of guix-system packages\n    32. {guix-user}: Number of guix-user packages\n    33. {guix-home}: Number of guix-home packages\n    34. {linglong}: Number of linglong packages\n    35. {pacstall}: Number of pacstall packages\n    36. {mport}: Number of mport packages\n    37. {am-user}: Number of am-user (aka appman) packages\n    38. {pkgsrc}: Number of pkgsrc packages\n    39. {hpkg-system}: Number of hpkg-system packages\n    40. {hpkg-user}: Number of hpkg-user packages\n    41. {pisi}: Number of pisi packages\n    42. {soar}: Number of soar packages\n    43. {kiss}: Number of kiss packages\n    44. {nix-all}: Total number of all nix packages\n    45. {flatpak-all}: Total number of all flatpak app packages\n    46. {brew-all}: Total number of all brew packages\n    47. {guix-all}: Total number of all guix packages\n    48. {hpkg-all}: Total number of all hpkg packages",
             "type": "string"
         },
         "physicaldiskFormat": {
@@ -498,7 +498,7 @@
             "type": "string"
         },
         "titleFormat": {
-            "description": "Output format of the module `Title`. See Wiki for formatting syntax\n    1. {user-name}: User name\n    2. {host-name}: Host name\n    3. {home-dir}: Home directory\n    4. {exe-path}: Executable path of current process\n    5. {user-shell}: User's default shell\n    6. {user-name-colored}: User name (colored)\n    7. {at-symbol-colored}: @ symbol (colored)\n    8. {host-name-colored}: Host name (colored)\n    9. {full-user-name}: Full user name",
+            "description": "Output format of the module `Title`. See Wiki for formatting syntax\n    1. {user-name}: User name\n    2. {host-name}: Host name\n    3. {home-dir}: Home directory\n    4. {exe-path}: Executable path of current process\n    5. {user-shell}: User's default shell\n    6. {user-name-colored}: User name (colored)\n    7. {at-symbol-colored}: @ symbol (colored)\n    8. {host-name-colored}: Host name (colored)\n    9. {full-user-name}: Full user name\n    10. {user-id}: UID (*nix) / SID (Windows)\n    11. {pid}: PID of current process",
             "type": "string"
         },
         "themeFormat": {
@@ -546,7 +546,7 @@
             "type": "string"
         },
         "zpoolFormat": {
-            "description": "Output format of the module `Zpool`. See Wiki for formatting syntax\n    1. {name}: Zpool name\n    2. {state}: Zpool state\n    3. {used}: Size used\n    4. {total}: Size total\n    5. {used-percentage}: Size percentage num\n    6. {fragmentation-percentage}: Fragmentation percentage num\n    7. {used-percentage-bar}: Size percentage bar\n    8. {fragmentation-percentage-bar}: Fragmentation percentage bar",
+            "description": "Output format of the module `Zpool`. See Wiki for formatting syntax\n    1. {name}: Zpool name\n    2. {guid}: Zpool guid\n    3. {state}: Zpool state\n    4. {used}: Size used\n    5. {allocated}: Size allocated\n    6. {total}: Size total\n    7. {used-percentage}: Size used percentage num\n    8. {allocated-percentage}: Size allocated percentage num\n    9. {fragmentation-percentage}: Fragmentation percentage num\n    10. {used-percentage-bar}: Size used percentage bar\n    11. {allocated-percentage-bar}: Size allocated percentage bar\n    12. {fragmentation-percentage-bar}: Fragmentation percentage bar\n    13. {is-readonly}: Is read-only",
             "type": "string"
         }
     },
@@ -1008,7 +1008,7 @@
                         },
                         "type": {
                             "type": "string",
-                            "description": "Set whether to show icon before string keys",
+                            "description": "Set whether to show builtin icon before string keys",
                             "oneOf": [
                                 {
                                     "const": "none",
@@ -1020,11 +1020,31 @@
                                 },
                                 {
                                     "const": "icon",
-                                    "description": "Show icon keys (requires newest nerd font)"
+                                    "description": "Show builtin icon (requires newest nerd font)"
                                 },
                                 {
                                     "const": "both",
-                                    "description": "Show both icon and string keys"
+                                    "description": "Show both icon and string keys (alias of `both-1`)"
+                                },
+                                {
+                                    "const": "both-0",
+                                    "description": "Show both icon and string with no spaces between them"
+                                },
+                                {
+                                    "const": "both-1",
+                                    "description": "Show both icon and string with a space between them"
+                                },
+                                {
+                                    "const": "both-2",
+                                    "description": "Show both icon and string with 2 spaces between them"
+                                },
+                                {
+                                    "const": "both-3",
+                                    "description": "Show both icon and string with 3 spaces between them"
+                                },
+                                {
+                                    "const": "both-4",
+                                    "description": "Show both icon and string with 4 spaces between them"
                                 }
                             ],
                             "default": "string"
@@ -1290,10 +1310,19 @@
                     "description": "Set how frequency values should be displayed",
                     "properties": {
                         "ndigits": {
-                            "type": "integer",
-                            "description": "Set the number of digits to keep after the decimal point when formatting frequency values\nA positive value will show the frequency in GHz with decimal\n-1 will show the frequency in MHz",
-                            "minimum": -1,
-                            "maximum": 9,
+                            "description": "Set the number of decimal places to display when formatting frequency values",
+                            "oneOf": [
+                                {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9,
+                                    "description": "Integer value displays the frequency in GHz with specified decimal places"
+                                },
+                                {
+                                    "type": "null",
+                                    "description": "Null value display the frequency as integer MHz"
+                                }
+                            ],
                             "default": 2
                         },
                         "spaceBeforeUnit": {
@@ -1331,6 +1360,28 @@
                                 {
                                     "type": "null",
                                     "description": "The number of digits will be automatically determined based on the value"
+                                }
+                            ],
+                            "default": 2
+                        },
+                        "trailingZeros": {
+                            "description": "Set when to keep trailing zeros",
+                            "oneOf": [
+                                {
+                                    "type": "null",
+                                    "description": "Same as `default`"
+                                },
+                                {
+                                    "const": "default",
+                                    "description": "Use the behavior defined internally"
+                                },
+                                {
+                                    "const": "always",
+                                    "description": "Always keep trailing zeros"
+                                },
+                                {
+                                    "const": "never",
+                                    "description": "Never keep trailing zeros"
                                 }
                             ],
                             "default": null
@@ -1829,6 +1880,10 @@
                                     "temp": {
                                         "$ref": "#/$defs/temperature"
                                     },
+                                    "tempSensor": {
+                                        "description": "Set the temperature sensor to use for CPU temperature detection\n* Linux: `hwmon` or `thermal` path name (eg. `hwmon0`, `thermal_zone0)`\n* macOS: SMC sensor key (eg. `Tp01`)\n* Windows: thermal zone key (eg. `\\_TZ.CPUZ`)\n* FreeBSD: sysctl key (eg. `dev.cpu.0.temperature`)\n* NetBSD: sysmon sensor key (eg. `coretemp0`)",
+                                        "type": "string"
+                                    },
                                     "showPeCoreCount": {
                                         "description": "Detect and display CPU frequency of different core types (eg. Pcore and Ecore) if supported",
                                         "type": "boolean",
@@ -1944,7 +1999,7 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "type": {
-                                        "description": "Print some colored blocks",
+                                        "description": "Display the terminal's 16-color palette",
                                         "const": "colors"
                                     },
                                     "symbol": {
@@ -2049,6 +2104,21 @@
                                     "text": {
                                         "description": "Set the command text to be executed",
                                         "type": "string"
+                                    },
+                                    "useStdErr": {
+                                        "description": "Set if stderr should be used instead of stdout for command output",
+                                        "type": "boolean",
+                                        "default": false
+                                    },
+                                    "parallel": {
+                                        "description": "Set if the command should be executed in parallel with other commands\nImprove performance when using multiple commands, but may cause issues with some commands",
+                                        "type": "boolean",
+                                        "default": true
+                                    },
+                                    "splitLines": {
+                                        "description": "Set if the command output should be split into multiple lines",
+                                        "type": "boolean",
+                                        "default": false
                                     },
                                     "key": {
                                         "$ref": "#/$defs/key"
@@ -2276,17 +2346,60 @@
                                         "const": "disk"
                                     },
                                     "folders": {
-                                        "type": "string",
-                                        "description": "A colon (semicolon on Windows) separated list of folder paths for the disk output\nDefault: auto detection using mount-points\nThis option overrides other `show*` options"
+                                        "description": "A list of folder paths for the disk output\nDefault: auto detection using mount-points\nThis option overrides other `show*` options",
+                                        "oneOf": [
+                                            {
+                                                "type": "string",
+                                                "description": "A colon (semicolon on Windows) separated list of folder paths to get disk usage from",
+                                                "default": "/"
+                                            },
+                                            {
+                                                "type": "array",
+                                                "description": "An array of folder paths to get disk usage from",
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "minItems": 1,
+                                                "uniqueItems": true
+                                            }
+                                        ]
                                     },
                                     "hideFolders": {
-                                        "type": "string",
-                                        "description": "A colon (semicolon on Windows) separated list of folder paths to hide from the disk output",
-                                        "default": "/efi:/boot:/boot/efi:/boot/firmware"
+                                        "description": "A list of folder paths (or glob patterns) to hide from the disk output",
+                                        "oneOf": [
+                                            {
+                                                "type": "string",
+                                                "description": "A colon (semicolon on Windows) separated list of folder paths to hide from the disk output"
+                                            },
+                                            {
+                                                "type": "array",
+                                                "description": "An array of folder paths to hide from the disk output",
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "minItems": 1,
+                                                "uniqueItems": true
+                                            }
+                                        ],
+                                        "default": "/efi:/boot:/boot/*"
                                     },
                                     "hideFS": {
-                                        "type": "string",
-                                        "description": "A colon separated file systems to hide from the disk output"
+                                        "description": "A list of file systems to hide from the disk output",
+                                        "oneOf": [
+                                            {
+                                                "type": "string",
+                                                "description": "A colon separated list of file systems to hide from the disk output"
+                                            },
+                                            {
+                                                "type": "array",
+                                                "description": "An array of file systems to hide from the disk output",
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "minItems": 1,
+                                                "uniqueItems": true
+                                            }
+                                        ]
                                     },
                                     "showRegular": {
                                         "type": "boolean",
@@ -2562,6 +2675,15 @@
                                         "const": "gamepad",
                                         "description": "List connected gamepads"
                                     },
+                                    "ignores": {
+                                        "type": "array",
+                                        "description": "An array of case-insensitive device name prefixes to ignore",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "minItems": 1,
+                                        "uniqueItems": true
+                                    },
                                     "percent": {
                                         "$ref": "#/$defs/percent"
                                     },
@@ -2821,6 +2943,15 @@
                                         "const": "keyboard",
                                         "description": "List (connected) keyboards"
                                     },
+                                    "ignores": {
+                                        "type": "array",
+                                        "description": "An array of case-insensitive device name prefixes to ignore",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "minItems": 1,
+                                        "uniqueItems": true
+                                    },
                                     "key": {
                                         "$ref": "#/$defs/key"
                                     },
@@ -2833,8 +2964,11 @@
                                     "keyWidth": {
                                         "$ref": "#/$defs/keyWidth"
                                     },
+                                    "outputColor": {
+                                        "$ref": "#/$defs/outputColor"
+                                    },
                                     "format": {
-                                        "$ref": "#/$defs/memoryFormat"
+                                        "$ref": "#/$defs/keyboardFormat"
                                     },
                                     "condition": {
                                         "$ref": "#/$defs/conditions"
@@ -2889,7 +3023,32 @@
                                     },
                                     "showIpv6": {
                                         "description": "Show IPv6 addresses",
-                                        "type": "boolean",
+                                        "oneOf": [
+                                            {
+                                                "const": true,
+                                                "description": "Show the most useful IPv6 addresses"
+                                            },
+                                            {
+                                                "const": false,
+                                                "description": "Do not show IPv6 addresses"
+                                            },
+                                            {
+                                                "const": "gua",
+                                                "description": "Show only global unicast IPv6 addresses (2000::/3)"
+                                            },
+                                            {
+                                                "const": "ula",
+                                                "description": "Show only unique local IPv6 addresses (fc00::/7)"
+                                            },
+                                            {
+                                                "const": "lla",
+                                                "description": "Show only link-local IPv6 addresses (fe80::/10)"
+                                            },
+                                            {
+                                                "const": "unknown",
+                                                "description": "Show only IPv6 addresses that are not gua, ula or lla"
+                                            }
+                                        ],
                                         "default": false
                                     },
                                     "showSpeed": {
@@ -3044,6 +3203,20 @@
                                 }
                             },
                             {
+                                "title": "Logo",
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "type": {
+                                        "const": "logo",
+                                        "description": "Query built-in logo for JSON output"
+                                    },
+                                    "condition": {
+                                        "$ref": "#/$defs/conditions"
+                                    }
+                                }
+                            },
+                            {
                                 "title": "Media",
                                 "type": "object",
                                 "additionalProperties": false,
@@ -3119,6 +3292,15 @@
                                         "const": "mouse",
                                         "description": "List connected mouses"
                                     },
+                                    "ignores": {
+                                        "type": "array",
+                                        "description": "An array of case-insensitive device name prefixes to ignore",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "minItems": 1,
+                                        "uniqueItems": true
+                                    },
                                     "key": {
                                         "$ref": "#/$defs/key"
                                     },
@@ -3131,8 +3313,11 @@
                                     "keyWidth": {
                                         "$ref": "#/$defs/keyWidth"
                                     },
+                                    "outputColor": {
+                                        "$ref": "#/$defs/outputColor"
+                                    },
                                     "format": {
-                                        "$ref": "#/$defs/memoryFormat"
+                                        "$ref": "#/$defs/mouseFormat"
                                     },
                                     "condition": {
                                         "$ref": "#/$defs/conditions"
@@ -3656,8 +3841,8 @@
                                         "description": "Set the color of the separator line",
                                         "$ref": "#/$defs/outputColor"
                                     },
-                                    "length": {
-                                        "description": "Set the length of the separator line, or 0 to auto-detect",
+                                    "times": {
+                                        "description": "Set the times of separator string to repeat, or 0 to auto-detect",
                                         "type": "integer",
                                         "minimum": 0,
                                         "default": 0

@@ -2,28 +2,20 @@ extern "C" {
 #include "camera.h"
 #include "common/library.h"
 }
-#include "util/windows/com.hpp"
-#include "util/windows/unicode.hpp"
+#include "common/windows/com.hpp"
+#include "common/windows/unicode.hpp"
+#include "common/windows/util.hpp"
 
 #include <initguid.h>
 #include <mfapi.h>
 #include <mfidl.h>
 
-template <typename Fn>
-struct on_scope_exit {
-    on_scope_exit(Fn &&fn): _fn(std::move(fn)) {}
-    ~on_scope_exit() { this->_fn(); }
-
-private:
-    Fn _fn;
-};
-
 extern "C"
 const char* ffDetectCamera(FF_MAYBE_UNUSED FFlist* result)
 {
-    FF_LIBRARY_LOAD(mfplat, "dlopen mfplat" FF_LIBRARY_EXTENSION " failed", "mfplat" FF_LIBRARY_EXTENSION, 1)
+    FF_LIBRARY_LOAD_MESSAGE(mfplat, "mfplat" FF_LIBRARY_EXTENSION, 1)
     FF_LIBRARY_LOAD_SYMBOL_MESSAGE(mfplat, MFCreateAttributes)
-    FF_LIBRARY_LOAD(mf, "dlopen mf" FF_LIBRARY_EXTENSION " failed", "mf" FF_LIBRARY_EXTENSION, 1)
+    FF_LIBRARY_LOAD_MESSAGE(mf, "mf" FF_LIBRARY_EXTENSION, 1)
     FF_LIBRARY_LOAD_SYMBOL_MESSAGE(mf, MFEnumDeviceSources)
 
     const char* error = ffInitCom();

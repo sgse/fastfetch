@@ -1,35 +1,69 @@
 #include "packages.h"
 #include "common/processing.h"
-#include "util/stringUtils.h"
-#include "util/path.h"
+#include "common/stringUtils.h"
+#include "common/path.h"
+#include "common/windows/unicode.h"
+#include "common/mallocHelper.h"
+#include "common/io.h"
 
-#include <handleapi.h>
-#include <fileapi.h>
+#include <stdalign.h>
+#include <windows.h>
+#include "common/windows/nt.h"
+#include <ntstatus.h>
+#include <shlobj.h>
 
-static uint32_t getNumElements(const char* searchPath /* including `\*` suffix */, DWORD type, const char* ignore)
+static uint32_t getNumElements(const char* searchPath, DWORD type, const wchar_t* ignore)
 {
-    uint32_t counter = 0;
-    bool flag = ignore == NULL;
-    WIN32_FIND_DATAA wfd;
-    HANDLE hFind = FindFirstFileA(searchPath, &wfd);
+    FF_AUTO_CLOSE_FD HANDLE dfd = CreateFileA(searchPath, FILE_LIST_DIRECTORY | SYNCHRONIZE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (dfd == INVALID_HANDLE_VALUE) return 0;
 
-    if (hFind != INVALID_HANDLE_VALUE)
-    {
-        do // Managed to locate and create an handle to that folder.
+    bool flag = ignore == NULL;
+    uint32_t counter = 0;
+    alignas(8) uint8_t buffer[64 * 1024];
+    BOOLEAN firstScan = TRUE;
+
+    size_t ignoreLen = ignore ? wcslen(ignore) : 0;
+
+    while (true) {
+        IO_STATUS_BLOCK ioStatus = {};
+        NTSTATUS status = NtQueryDirectoryFile(
+            dfd,
+            NULL, NULL, NULL,
+            &ioStatus,
+            buffer, ARRAY_SIZE(buffer),
+            FileDirectoryInformation,
+            FALSE,
+            NULL,
+            firstScan
+        );
+        firstScan = FALSE;
+
+        if (!NT_SUCCESS(status) && status != STATUS_BUFFER_OVERFLOW) break;
+
+        for (FILE_DIRECTORY_INFORMATION* entry = (FILE_DIRECTORY_INFORMATION*) buffer;
+            ;
+            entry = (FILE_DIRECTORY_INFORMATION*) ((uint8_t*) entry + entry->NextEntryOffset))
         {
-            if(!(wfd.dwFileAttributes & type)) continue;
-            if(!flag && ffStrEqualsIgnCase(ignore, wfd.cFileName))
+            if (!(entry->FileAttributes & type)) continue;
+
+            if (!flag &&
+                ignoreLen == entry->FileNameLength / sizeof(*entry->FileName) &&
+                _wcsnicmp(entry->FileName, ignore, ignoreLen) == 0)
             {
                 flag = true;
                 continue;
             }
-            counter++;
-        } while (FindNextFileA(hFind, &wfd));
-        FindClose(hFind);
 
-        if(type == FILE_ATTRIBUTE_DIRECTORY && counter >= 2)
-            counter -= 2; // accounting for . and ..
+            counter++;
+
+            if (entry->NextEntryOffset == 0) break;
+        }
+
+        if (status == STATUS_SUCCESS) break; // No next page
     }
+
+    if(type == FILE_ATTRIBUTE_DIRECTORY && counter >= 2)
+        counter -= 2; // accounting for . and ..
 
     return counter;
 }
@@ -44,7 +78,7 @@ static inline void wrapYyjsonFree(yyjson_doc** doc)
 static void detectScoop(FFPackagesResult* result)
 {
     FF_STRBUF_AUTO_DESTROY scoopPath = ffStrbufCreateA(MAX_PATH + 3);
-    ffStrbufAppendS(&scoopPath, instance.state.platform.homeDir.chars);
+    ffStrbufAppend(&scoopPath, &instance.state.platform.homeDir);
     ffStrbufAppendS(&scoopPath, ".config/scoop/config.json");
 
     yyjson_val* root = NULL;
@@ -65,8 +99,8 @@ static void detectScoop(FFPackagesResult* result)
             ffStrbufSet(&scoopPath, &instance.state.platform.homeDir);
             ffStrbufAppendS(&scoopPath, "/scoop");
         }
-        ffStrbufAppendS(&scoopPath, "/apps/*");
-        result->scoopUser = getNumElements(scoopPath.chars, FILE_ATTRIBUTE_DIRECTORY, "scoop");
+        ffStrbufAppendS(&scoopPath, "/apps/");
+        result->scoopUser = getNumElements(scoopPath.chars, FILE_ATTRIBUTE_DIRECTORY, L"scoop");
     }
 
     {
@@ -75,11 +109,16 @@ static void detectScoop(FFPackagesResult* result)
             ffStrbufSetJsonVal(&scoopPath, yyjson_obj_get(root, "global_path"));
         if (scoopPath.length == 0)
         {
-            ffStrbufSetS(&scoopPath, getenv("ProgramData"));
+            PWSTR pPath = NULL;
+            if (SUCCEEDED(SHGetKnownFolderPath(&FOLDERID_ProgramData, KF_FLAG_DEFAULT, NULL, &pPath)))
+            {
+                ffStrbufSetWS(&scoopPath, pPath);
+                CoTaskMemFree(pPath);
+            }
             ffStrbufAppendS(&scoopPath, "/scoop");
         }
-        ffStrbufAppendS(&scoopPath, "/apps/*");
-        result->scoopGlobal = getNumElements(scoopPath.chars, FILE_ATTRIBUTE_DIRECTORY, "scoop");
+        ffStrbufAppendS(&scoopPath, "/apps/");
+        result->scoopGlobal = getNumElements(scoopPath.chars, FILE_ATTRIBUTE_DIRECTORY, L"scoop");
     }
 }
 
@@ -91,8 +130,8 @@ static void detectChoco(FF_MAYBE_UNUSED FFPackagesResult* result)
 
     char chocoPath[MAX_PATH + 3];
     char* pend = ffStrCopy(chocoPath, chocoInstall, ARRAY_SIZE(chocoPath));
-    ffStrCopy(pend, "/lib/*", ARRAY_SIZE(chocoPath) - (size_t) (pend - chocoPath));
-    result->choco = getNumElements(chocoPath, FILE_ATTRIBUTE_DIRECTORY, "choco");
+    ffStrCopy(pend, "/lib/", ARRAY_SIZE(chocoPath) - (size_t) (pend - chocoPath));
+    result->choco = getNumElements(chocoPath, FILE_ATTRIBUTE_DIRECTORY, L"choco");
 }
 
 static void detectPacman(FFPackagesResult* result)
@@ -104,7 +143,7 @@ static void detectPacman(FFPackagesResult* result)
     // MSYS2
     char pacmanPath[MAX_PATH + 3];
     char* pend = ffStrCopy(pacmanPath, msystemPrefix, ARRAY_SIZE(pacmanPath));
-    ffStrCopy(pend, "/../var/lib/pacman/local/*", ARRAY_SIZE(pacmanPath) - (size_t) (pend - pacmanPath));
+    ffStrCopy(pend, "/../var/lib/pacman/local/", ARRAY_SIZE(pacmanPath) - (size_t) (pend - pacmanPath));
     result->pacman = getNumElements(pacmanPath, FILE_ATTRIBUTE_DIRECTORY, NULL);
 }
 

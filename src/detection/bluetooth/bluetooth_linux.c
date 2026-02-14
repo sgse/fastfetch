@@ -1,9 +1,9 @@
 #include "bluetooth.h"
-#include "util/stringUtils.h"
+#include "common/stringUtils.h"
 
 #ifdef FF_HAVE_DBUS
 #include "common/dbus.h"
-#include "common/io/io.h"
+#include "common/io.h"
 
 /* Example dbus reply, striped to only the relevant parts:
 array [                                                     //root
@@ -196,7 +196,7 @@ static const char* detectBluetooth(FFlist* devices, int32_t connectedCount)
     if(error)
         return error;
 
-    DBusMessage* managedObjects = ffDBusGetMethodReply(&dbus, "org.bluez", "/", "org.freedesktop.DBus.ObjectManager", "GetManagedObjects", NULL);
+    DBusMessage* managedObjects = ffDBusGetMethodReply(&dbus, "org.bluez", "/", "org.freedesktop.DBus.ObjectManager", "GetManagedObjects", NULL, NULL);
     if(!managedObjects)
         return "Failed to call GetManagedObjects";
 

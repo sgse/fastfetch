@@ -1,7 +1,8 @@
 #include "physicaldisk.h"
-#include "common/io/io.h"
-#include "util/windows/unicode.h"
+#include "common/io.h"
+#include "common/windows/unicode.h"
 
+#include <stdalign.h>
 #include <windows.h>
 #include <winioctl.h>
 
@@ -135,7 +136,7 @@ static bool detectPhysicalDisk(const wchar_t* szDevice, FFlist* result, FFPhysic
     }
 
     {
-        uint8_t buffer[sizeof(GET_MEDIA_TYPES) + sizeof(DEVICE_MEDIA_INFO) * 7] = "";
+        alignas(GET_MEDIA_TYPES) uint8_t buffer[sizeof(GET_MEDIA_TYPES) + sizeof(DEVICE_MEDIA_INFO) * 7] = {};
         GET_MEDIA_TYPES* gmt = (GET_MEDIA_TYPES*) buffer;
         if(DeviceIoControl(
             hDevice,

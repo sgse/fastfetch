@@ -1,7 +1,7 @@
 extern "C"
 {
 #include "disk.h"
-#include "util/stringUtils.h"
+#include "common/stringUtils.h"
 }
 #include <fs_info.h>
 #include <Directory.h>
@@ -23,9 +23,15 @@ const char* ffDetectDisksImpl(FFDiskOptions* options, FFlist* disks)
 
         if (__builtin_expect(options->folders.length, 0))
         {
-            if (!ffDiskMatchMountpoint(&options->folders, path.Path()))
+            if (!ffStrbufSeparatedContainS(&options->folders, path.Path(), FF_DISK_FOLDER_SEPARATOR))
                 continue;
         }
+
+        if (options->hideFolders.length && ffDiskMatchesFolderPatterns(&options->hideFolders, path.Path(), FF_DISK_FOLDER_SEPARATOR))
+            continue;
+
+        if (options->hideFS.length && ffStrbufSeparatedContainS(&options->hideFS, fs.fsh_name, ':'))
+            continue;
 
         FFDisk* disk = (FFDisk*) ffListAdd(disks);
 

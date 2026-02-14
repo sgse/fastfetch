@@ -1,9 +1,9 @@
 #include "common/printing.h"
 #include "common/jsonconfig.h"
+#include "common/textModifier.h"
+#include "common/stringUtils.h"
 #include "logo/logo.h"
 #include "modules/colors/colors.h"
-#include "util/textModifier.h"
-#include "util/stringUtils.h"
 
 static inline uint8_t min(uint8_t a, uint8_t b)
 {
@@ -249,7 +249,7 @@ void ffDestroyColorsOptions(FFColorsOptions* options)
 
 FFModuleBaseInfo ffColorsModuleInfo = {
     .name = FF_COLORS_MODULE_NAME,
-    .description = "Print some colored blocks",
+    .description = "Display the terminal's 16-color palette",
     .initOptions = (void*) ffInitColorsOptions,
     .destroyOptions = (void*) ffDestroyColorsOptions,
     .parseJsonObject = (void*) ffParseColorsJsonObject,

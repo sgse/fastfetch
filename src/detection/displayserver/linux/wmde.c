@@ -1,8 +1,8 @@
 #include "displayserver_linux.h"
-#include "common/io/io.h"
+#include "common/io.h"
 #include "common/properties.h"
-#include "util/stringUtils.h"
-#include "util/mallocHelper.h"
+#include "common/stringUtils.h"
+#include "common/mallocHelper.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -266,7 +266,7 @@ static void applyPrettyNameIfDE(FFDisplayServerResult* result, const char* name)
 
 static const char* getFromProcesses(FFDisplayServerResult* result)
 {
-    uint32_t userId = getuid();
+    uint32_t userId = instance.state.platform.uid;
 
 #if __FreeBSD__
     #ifdef __DragonFly__

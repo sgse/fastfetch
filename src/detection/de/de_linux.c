@@ -1,13 +1,13 @@
 #include "de.h"
 
 #include "common/dbus.h"
-#include "common/io/io.h"
+#include "common/io.h"
 #include "common/library.h"
 #include "common/parsing.h"
 #include "common/properties.h"
 #include "common/processing.h"
-#include "util/binary.h"
-#include "util/path.h"
+#include "common/binary.h"
+#include "common/path.h"
 #include "detection/displayserver/displayserver.h"
 
 #include <ctype.h>
@@ -22,7 +22,7 @@
     #define _PATH_LOCALBASE "/usr/pkg"
 #endif
 
-static void getKDE(FFstrbuf* result, FFDEOptions* options)
+static void getKDE(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
 {
 #ifdef _PATH_LOCALBASE
     ffParsePropFile(_PATH_LOCALBASE "/share/wayland-sessions/plasma.desktop", "X-KDE-PluginInfo-Version =", result);
@@ -44,7 +44,7 @@ static void getKDE(FFstrbuf* result, FFDEOptions* options)
     if(result->length == 0)
         ffParsePropFileData("wayland-sessions/plasmawayland5.desktop", "X-KDE-PluginInfo-Version =", result);
 
-    if(result->length == 0 && options->slowVersionDetection)
+    if(result->length == 0)
     {
         if (ffProcessAppendStdOut(result, (char* const[]){
             "plasmashell",
@@ -73,7 +73,7 @@ static void getGnome(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
 {
     getGnomeByDbus(result);
 
-    if (result->length == 0 && options->slowVersionDetection)
+    if (result->length == 0)
     {
         if (ffProcessAppendStdOut(result, (char* const[]){
             "gnome-shell",
@@ -91,7 +91,7 @@ static void getCinnamon(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
     if (result->length == 0)
         ffParsePropFileData("applications/cinnamon.desktop", "X-GNOME-Bugzilla-Version =", result);
 
-    if (result->length == 0 && options->slowVersionDetection)
+    if (result->length == 0)
     {
         if (ffProcessAppendStdOut(result, (char* const[]){
             "cinnamon",
@@ -102,7 +102,7 @@ static void getCinnamon(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
     }
 }
 
-static void getMate(FFstrbuf* result, FFDEOptions* options)
+static void getMate(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
 {
     FF_STRBUF_AUTO_DESTROY major = ffStrbufCreate();
     FF_STRBUF_AUTO_DESTROY minor = ffStrbufCreate();
@@ -116,7 +116,7 @@ static void getMate(FFstrbuf* result, FFDEOptions* options)
 
     ffParseSemver(result, &major, &minor, &micro);
 
-    if(result->length == 0 && options->slowVersionDetection)
+    if(result->length == 0)
     {
         ffProcessAppendStdOut(result, (char* const[]){
             "mate-session",
@@ -133,7 +133,7 @@ static const char* getXfce4ByLib(FFstrbuf* result)
 {
 #ifndef FF_DISABLE_DLOPEN
     const char* xfce_version_string(void); // from `xfce4/libxfce4util/xfce-misutils.h
-    FF_LIBRARY_LOAD(xfce4util, "dlopen libxfce4util" FF_LIBRARY_EXTENSION "failed", "libxfce4util" FF_LIBRARY_EXTENSION, 7);
+    FF_LIBRARY_LOAD_MESSAGE(xfce4util, "libxfce4util" FF_LIBRARY_EXTENSION, 7);
     FF_LIBRARY_LOAD_SYMBOL_MESSAGE(xfce4util, xfce_version_string);
     ffStrbufSetS(result, ffxfce_version_string());
     return NULL;
@@ -143,11 +143,11 @@ static const char* getXfce4ByLib(FFstrbuf* result)
 #endif
 }
 
-static void getXFCE4(FFstrbuf* result, FFDEOptions* options)
+static void getXFCE4(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
 {
     getXfce4ByLib(result);
 
-    if(result->length == 0 && options->slowVersionDetection)
+    if(result->length == 0)
     {
         //This is somewhat slow
         ffProcessAppendStdOut(result, (char* const[]){
@@ -162,7 +162,7 @@ static void getXFCE4(FFstrbuf* result, FFDEOptions* options)
     }
 }
 
-static void getLXQt(FFstrbuf* result, FFDEOptions* options)
+static void getLXQt(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
 {
     ffParsePropFileData("gconfig/lxqt.pc", "Version:", result);
 
@@ -171,7 +171,7 @@ static void getLXQt(FFstrbuf* result, FFDEOptions* options)
     if(result->length == 0)
         ffParsePropFileData("cmake/lxqt/lxqt-config-version.cmake", "set ( PACKAGE_VERSION", result);
 
-    if(result->length == 0 && options->slowVersionDetection)
+    if(result->length == 0)
     {
         //This is really, really, really slow. Thank you, LXQt developers
         ffProcessAppendStdOut(result, (char* const[]){
@@ -206,7 +206,7 @@ static bool extractTdeVersion(const char* line, uint32_t len, void *userdata)
     return false;
 }
 
-static const char* getTrinity(FFstrbuf* result, FFDEOptions* options)
+static const char* getTrinity(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
 {
     FF_STRBUF_AUTO_DESTROY path = ffStrbufCreate();
     const char* error = ffFindExecutableInPath("tde-config", &path);
@@ -218,15 +218,13 @@ static const char* getTrinity(FFstrbuf* result, FFDEOptions* options)
     if (ffBinaryExtractStrings(path.chars, extractTdeVersion, result, strlen("R0.0.0")) == NULL)
         return NULL;
 
-    if (options->slowVersionDetection)
+    ffStrbufClear(&path);
+    if (ffProcessAppendStdOut(&path, (char* const[]){
+        "tde-config",
+        "--version",
+        NULL
+    }) == NULL)
     {
-        ffStrbufClear(&path);
-        ffProcessAppendStdOut(&path, (char* const[]){
-            "tde-config",
-            "--version",
-            NULL
-        });
-
         ffParsePropLines(path.chars , "TDE: ", result);
         return NULL;
     }
@@ -234,6 +232,21 @@ static const char* getTrinity(FFstrbuf* result, FFDEOptions* options)
     return "All methods failed";
 }
 
+static const char* getCosmic(FFstrbuf* result, FF_MAYBE_UNUSED FFDEOptions* options)
+{
+    if (ffProcessAppendStdOut(result, (char* const[]){
+        "cosmic-comp",
+        "--version",
+        NULL
+    }) == NULL) {
+        // cosmic-comp 0.1.0 (git commit fa88002ba41d2edec25dd7ffdee9719fbb928fc0)
+        ffStrbufSubstrAfterFirstC(result, ' ');
+        ffStrbufSubstrBeforeFirstC(result, ' ');
+        return NULL;
+    }
+
+    return "All methods failed";
+}
 
 const char* ffDetectDEVersion(const FFstrbuf* deName, FFstrbuf* result, FFDEOptions* options)
 {
@@ -257,6 +270,8 @@ const char* ffDetectDEVersion(const FFstrbuf* deName, FFstrbuf* result, FFDEOpti
         getUnity(result, options);
     else if (ffStrbufEqualS(deName, "trinity"))
         getTrinity(result, options);
+    else if (ffStrbufEqualS(deName, "COSMIC"))
+        getCosmic(result, options);
     else
         return "Unsupported DE";
     return NULL;

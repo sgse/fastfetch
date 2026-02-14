@@ -1,9 +1,9 @@
 #include "bluetoothradio.h"
-#include "util/stringUtils.h"
+#include "common/stringUtils.h"
 
 #ifdef FF_HAVE_DBUS
 #include "common/dbus.h"
-#include "common/io/io.h"
+#include "common/io.h"
 
 /* Example dbus reply:
 array [
@@ -77,7 +77,7 @@ static const char* detectBluetoothRoot(FFBluetoothRadioResult* device, const cha
     char objPath[300];
     snprintf(objPath, sizeof(objPath), "/org/bluez/%s", hciName);
 
-    DBusMessage* properties = ffDBusGetMethodReply(dbus, "org.bluez", objPath, "org.freedesktop.DBus.Properties", "GetAll", "org.bluez.Adapter1");
+    DBusMessage* properties = ffDBusGetMethodReply(dbus, "org.bluez", objPath, "org.freedesktop.DBus.Properties", "GetAll", "org.bluez.Adapter1", NULL);
     if(!properties)
         return "Failed to call org.freedesktop.DBus.Properties.GetAll";
 
