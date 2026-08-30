@@ -1,10 +1,9 @@
 #include "common/binary.h"
 #include "common/io.h"
-#include "common/stringUtils.h"
-#include "common/mallocHelper.h"
+#include "common/strutil.h"
+#include "common/windows/nt.h"
 
 #include <windows.h>
-#include <imagehlp.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -15,38 +14,58 @@
  * (which typically contains string literals), and scans it for valid strings.
  * Each string found is passed to the callback function for processing.
  */
-const char* ffBinaryExtractStrings(const char *peFile, bool (*cb)(const char *str, uint32_t len, void *userdata), void *userdata, uint32_t minLength)
-{
-    // Use MapAndLoad with cleanup attribute to ensure proper unloading
-    __attribute__((__cleanup__(UnMapAndLoad))) LOADED_IMAGE loadedImage = {};
-    if (!MapAndLoad(peFile, NULL, &loadedImage, FALSE, TRUE))
-        return "File could not be loaded";
+const char* ffBinaryExtractStrings(const char* peFile, bool (*cb)(const char* str, uint32_t len, void* userdata), void* userdata, uint32_t minLength) {
+    FF_AUTO_CLOSE_FD HANDLE hFile = CreateFileA(peFile, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return "CreateFileA() failed";
+    }
 
-    // Iterate through all sections in the PE file
-    for (ULONG i = 0; i < loadedImage.NumberOfSections; ++i)
-    {
-        PIMAGE_SECTION_HEADER section = &loadedImage.Sections[i];
+    FF_AUTO_CLOSE_FD HANDLE hSection = nullptr;
+    if (!NT_SUCCESS(NtCreateSection(&hSection, SECTION_MAP_READ, nullptr, nullptr, PAGE_READONLY, SEC_COMMIT, hFile))) {
+        return "NtCreateSection() failed";
+    }
+
+    PVOID base = nullptr;
+    SIZE_T viewSize = 0;
+    if (!NT_SUCCESS(NtMapViewOfSection(hSection, NtCurrentProcess(), &base, 0, 0, nullptr, &viewSize, ViewUnmap, 0, PAGE_READONLY))) {
+        return "NtMapViewOfSection() failed";
+    }
+
+    PIMAGE_NT_HEADERS ntHeaders = RtlImageNtHeader(base);
+    if (!ntHeaders) {
+        NtUnmapViewOfSection(NtCurrentProcess(), base);
+        return "RtlImageNtHeader() failed";
+    }
+
+    PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(ntHeaders);
+    for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++i, ++section) {
         // Look for initialized data sections with the name ".rdata" which typically contains string literals
-        if ((section->Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA) && ffStrEquals((const char*) section->Name, ".rdata"))
-        {
-            uint8_t *data = (uint8_t *) loadedImage.MappedAddress + section->PointerToRawData;
+        if ((section->Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA) && ffStrEquals((const char*) section->Name, ".rdata")) {
+            uint8_t* data = (uint8_t*) base + section->PointerToRawData;
 
             // Scan the section for string literals
-            for (size_t off = 0; off < section->SizeOfRawData; ++off)
-            {
+            for (size_t off = 0; off < section->SizeOfRawData; ++off) {
                 const char* p = (const char*) data + off;
-                if (*p == '\0') continue;
-                uint32_t len = (uint32_t) strlen(p);
-                if (len < minLength) continue;
+                if (*p == '\0') {
+                    continue;
+                }
+                uint32_t len = (uint32_t) strnlen(p, section->SizeOfRawData - off);
+                if (len < minLength) {
+                    off += len;
+                    continue;
+                }
                 // Only process printable ASCII characters
                 if (*p >= ' ' && *p <= '~') // Ignore control characters
                 {
-                    if (!cb(p, len, userdata)) break;
+                    if (!cb(p, len, userdata)) {
+                        break;
+                    }
                 }
                 off += len;
             }
         }
     }
 
-    return NULL;
+    NtUnmapViewOfSection(NtCurrentProcess(), base);
+    return nullptr;
 }

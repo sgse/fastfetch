@@ -1,58 +1,47 @@
 #include "common/printing.h"
 #include "common/jsonconfig.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "detection/wmtheme/wmtheme.h"
 #include "modules/wmtheme/wmtheme.h"
 
-#define FF_WMTHEME_DISPLAY_NAME "WM Theme"
-
-bool ffPrintWMTheme(FFWMThemeOptions* options)
-{
+bool ffPrintWMTheme(FFWMThemeOptions* options) {
     FF_STRBUF_AUTO_DESTROY themeOrError = ffStrbufCreate();
-    if(!ffDetectWmTheme(&themeOrError))
-    {
-        ffPrintError(FF_WMTHEME_DISPLAY_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", themeOrError.chars);
+    if (!ffDetectWmTheme(&themeOrError)) {
+        ffPrintError(FF_MODULE_GET_DISPLAY_NAME(WMTheme), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", themeOrError.chars);
         return false;
     }
 
-    if(options->moduleArgs.outputFormat.length == 0)
-    {
-        ffPrintLogoAndKey(FF_WMTHEME_DISPLAY_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
+    if (options->moduleArgs.outputFormat.length == 0) {
+        ffPrintLogoAndKey(FF_MODULE_GET_DISPLAY_NAME(WMTheme), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
         puts(themeOrError.chars);
-    }
-    else
-    {
-        FF_PRINT_FORMAT_CHECKED(FF_WMTHEME_DISPLAY_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]){
-            FF_FORMAT_ARG(themeOrError, "result"),
-        }));
+    } else {
+        FF_PRINT_FORMAT_CHECKED(FF_MODULE_GET_DISPLAY_NAME(WMTheme), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]) {
+                                                                                                             FF_ARG(themeOrError, "result"),
+                                                                                                         }));
     }
 
     return true;
 }
 
-void ffParseWMThemeJsonObject(FFWMThemeOptions* options, yyjson_val* module)
-{
+void ffParseWMThemeJsonObject(FFWMThemeOptions* options, yyjson_val* module) {
     yyjson_val *key, *val;
     size_t idx, max;
-    yyjson_obj_foreach(module, idx, max, key, val)
-    {
-        if (ffJsonConfigParseModuleArgs(key, val, &options->moduleArgs))
+    yyjson_obj_foreach (module, idx, max, key, val) {
+        if (ffJsonConfigParseModuleArgs(key, val, &options->moduleArgs)) {
             continue;
+        }
 
-        ffPrintError(FF_WMTHEME_DISPLAY_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", unsafe_yyjson_get_str(key));
+        ffPrintError(FF_MODULE_GET_DISPLAY_NAME(WMTheme), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", unsafe_yyjson_get_str(key));
     }
 }
 
-void ffGenerateWMThemeJsonConfig(FFWMThemeOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
-{
+void ffGenerateWMThemeJsonConfig(FFWMThemeOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module) {
     ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 }
 
-bool ffGenerateWMThemeJsonResult(FF_MAYBE_UNUSED FFWMThemeOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
-{
+bool ffGenerateWMThemeJsonResult([[maybe_unused]] FFWMThemeOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module) {
     FF_STRBUF_AUTO_DESTROY themeOrError = ffStrbufCreate();
-    if(!ffDetectWmTheme(&themeOrError))
-    {
+    if (!ffDetectWmTheme(&themeOrError)) {
         yyjson_mut_obj_add_strbuf(doc, module, "error", &themeOrError);
         return false;
     }
@@ -61,19 +50,39 @@ bool ffGenerateWMThemeJsonResult(FF_MAYBE_UNUSED FFWMThemeOptions* options, yyjs
     return true;
 }
 
-void ffInitWMThemeOptions(FFWMThemeOptions* options)
-{
+void ffInitWMThemeOptions(FFWMThemeOptions* options) {
     ffOptionInitModuleArg(&options->moduleArgs, "󰓸");
 }
 
-void ffDestroyWMThemeOptions(FFWMThemeOptions* options)
-{
+void ffDestroyWMThemeOptions(FFWMThemeOptions* options) {
     ffOptionDestroyModuleArg(&options->moduleArgs);
 }
 
 FFModuleBaseInfo ffWMThemeModuleInfo = {
-    .name = FF_WMTHEME_MODULE_NAME,
-    .description = "Print current theme of window manager",
+    .name = "WMTheme",
+    .description = "Print the current window manager theme",
+    .displayName = {
+        .en = "WM Theme",
+        .ar = "سمة مدير النوافذ",
+        .cs = "Motiv správce oken",
+        .de = "Fenstermanager-Thema",
+        .es = "Tema del gestor de ventanas",
+        .fr = "Thème du gestionnaire de fenêtres",
+        .gl = "Tema do xestor de xanelas",
+        .he = "ערכת נושא של מנהל חלונות",
+        .id = "Tema Manajer Jendela",
+        .it = "Tema del gestore finestre",
+        .ja = "ウィンドウマネージャのテーマ",
+        .ko = "윈도우 관리자 테마",
+        .pl = "Motyw menedżera okien",
+        .pt = "Tema do gerenciador de janelas",
+        .ru = "Тема менеджера окон",
+        .tr = "WM Teması",
+        .uk = "Тема менеджера вікон",
+        .vi = "Chủ đề trình quản lý cửa sổ",
+        .zh_CN = "窗口管理器主题",
+        .zh_TW = "視窗管理員主題",
+    },
     .initOptions = (void*) ffInitWMThemeOptions,
     .destroyOptions = (void*) ffDestroyWMThemeOptions,
     .parseJsonObject = (void*) ffParseWMThemeJsonObject,
@@ -81,6 +90,7 @@ FFModuleBaseInfo ffWMThemeModuleInfo = {
     .generateJsonResult = (void*) ffGenerateWMThemeJsonResult,
     .generateJsonConfig = (void*) ffGenerateWMThemeJsonConfig,
     .formatArgs = FF_FORMAT_ARG_LIST(((FFModuleFormatArg[]) {
-        {"WM theme", "result"},
-    }))
+        { "WM theme", "result" },
+    })),
+    .defaultOrder = 23,
 };

@@ -1,11 +1,10 @@
 #include "common/printing.h"
 #include "common/jsonconfig.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "detection/icons/icons.h"
 #include "modules/icons/icons.h"
 
-bool ffPrintIcons(FFIconsOptions* options)
-{
+bool ffPrintIcons(FFIconsOptions* options) {
     bool success = false;
     FFIconsResult result = {
         .icons1 = ffStrbufCreate(),
@@ -13,31 +12,28 @@ bool ffPrintIcons(FFIconsOptions* options)
     };
     const char* error = ffDetectIcons(&result);
 
-    if(error)
-    {
-        ffPrintError(FF_ICONS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
+    if (error) {
+        ffPrintError(FF_MODULE_GET_DISPLAY_NAME(Icons), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
         goto exit;
     }
 
-    if(options->moduleArgs.outputFormat.length == 0)
-    {
-        ffPrintLogoAndKey(FF_ICONS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
-        if (result.icons1.length)
+    if (options->moduleArgs.outputFormat.length == 0) {
+        ffPrintLogoAndKey(FF_MODULE_GET_DISPLAY_NAME(Icons), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
+        if (result.icons1.length) {
             ffStrbufWriteTo(&result.icons1, stdout);
-        if (result.icons2.length)
-        {
-            if (result.icons1.length)
+        }
+        if (result.icons2.length) {
+            if (result.icons1.length) {
                 fputs(", ", stdout);
+            }
             ffStrbufWriteTo(&result.icons2, stdout);
         }
         putchar('\n');
-    }
-    else
-    {
-        FF_PRINT_FORMAT_CHECKED(FF_ICONS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]){
-            FF_FORMAT_ARG(result.icons1, "icons1"),
-            FF_FORMAT_ARG(result.icons2, "icons2"),
-        }));
+    } else {
+        FF_PRINT_FORMAT_CHECKED(FF_MODULE_GET_DISPLAY_NAME(Icons), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]) {
+                                                                                                          FF_ARG(result.icons1, "icons1"),
+                                                                                                          FF_ARG(result.icons2, "icons2"),
+                                                                                                      }));
     }
     success = true;
 
@@ -48,26 +44,23 @@ exit:
     return success;
 }
 
-void ffParseIconsJsonObject(FFIconsOptions* options, yyjson_val* module)
-{
+void ffParseIconsJsonObject(FFIconsOptions* options, yyjson_val* module) {
     yyjson_val *key, *val;
     size_t idx, max;
-    yyjson_obj_foreach(module, idx, max, key, val)
-    {
-        if (ffJsonConfigParseModuleArgs(key, val, &options->moduleArgs))
+    yyjson_obj_foreach (module, idx, max, key, val) {
+        if (ffJsonConfigParseModuleArgs(key, val, &options->moduleArgs)) {
             continue;
+        }
 
-        ffPrintError(FF_ICONS_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", unsafe_yyjson_get_str(key));
+        ffPrintError(FF_MODULE_GET_DISPLAY_NAME(Icons), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", unsafe_yyjson_get_str(key));
     }
 }
 
-void ffGenerateIconsJsonConfig(FFIconsOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
-{
+void ffGenerateIconsJsonConfig(FFIconsOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module) {
     ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 }
 
-bool ffGenerateIconsJsonResult(FF_MAYBE_UNUSED FFIconsOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
-{
+bool ffGenerateIconsJsonResult([[maybe_unused]] FFIconsOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module) {
     bool success = false;
     FFIconsResult result = {
         .icons1 = ffStrbufCreate(),
@@ -75,8 +68,7 @@ bool ffGenerateIconsJsonResult(FF_MAYBE_UNUSED FFIconsOptions* options, yyjson_m
     };
     const char* error = ffDetectIcons(&result);
 
-    if(error)
-    {
+    if (error) {
         yyjson_mut_obj_add_str(doc, module, "error", error);
         goto exit;
     }
@@ -93,19 +85,39 @@ exit:
     return success;
 }
 
-void ffInitIconsOptions(FFIconsOptions* options)
-{
+void ffInitIconsOptions(FFIconsOptions* options) {
     ffOptionInitModuleArg(&options->moduleArgs, "");
 }
 
-void ffDestroyIconsOptions(FFIconsOptions* options)
-{
+void ffDestroyIconsOptions(FFIconsOptions* options) {
     ffOptionDestroyModuleArg(&options->moduleArgs);
 }
 
 FFModuleBaseInfo ffIconsModuleInfo = {
-    .name = FF_ICONS_MODULE_NAME,
+    .name = "Icons",
     .description = "Print icon style name",
+    .displayName = {
+        .en = "Icons",
+        .ar = "الأيقونات",
+        .cs = "Ikony",
+        .de = "Symbole",
+        .es = "Iconos",
+        .fr = "Icônes",
+        .gl = "Iconas",
+        .he = "סמלים",
+        .id = "Ikon",
+        .it = "Icone",
+        .ja = "アイコン",
+        .ko = "아이콘",
+        .pl = "Ikony",
+        .pt = "Ícones",
+        .ru = "Иконки",
+        .tr = "Simgeler",
+        .uk = "Піктограми",
+        .vi = "Biểu tượng",
+        .zh_CN = "图标",
+        .zh_TW = "圖示",
+    },
     .initOptions = (void*) ffInitIconsOptions,
     .destroyOptions = (void*) ffDestroyIconsOptions,
     .parseJsonObject = (void*) ffParseIconsJsonObject,
@@ -113,7 +125,8 @@ FFModuleBaseInfo ffIconsModuleInfo = {
     .generateJsonResult = (void*) ffGenerateIconsJsonResult,
     .generateJsonConfig = (void*) ffGenerateIconsJsonConfig,
     .formatArgs = FF_FORMAT_ARG_LIST(((FFModuleFormatArg[]) {
-        {"Icons part 1", "icons1"},
-        {"Icons part 2", "icons2"},
-    }))
+        { "Icons part 1", "icons1" },
+        { "Icons part 2", "icons2" },
+    })),
+    .defaultOrder = 25,
 };

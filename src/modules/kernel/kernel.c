@@ -1,53 +1,46 @@
 #include "common/printing.h"
 #include "common/jsonconfig.h"
 #include "common/size.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "modules/kernel/kernel.h"
 
-bool ffPrintKernel(FFKernelOptions* options)
-{
+bool ffPrintKernel(FFKernelOptions* options) {
     const FFPlatformSysinfo* info = &instance.state.platform.sysinfo;
-    if(options->moduleArgs.outputFormat.length == 0)
-    {
-        ffPrintLogoAndKey(FF_KERNEL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
+    if (options->moduleArgs.outputFormat.length == 0) {
+        ffPrintLogoAndKey(FF_MODULE_GET_DISPLAY_NAME(Kernel), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
         printf("%s %s\n", info->name.chars, info->release.chars);
-    }
-    else
-    {
+    } else {
         FF_STRBUF_AUTO_DESTROY str = ffStrbufCreate();
         ffSizeAppendNum(info->pageSize, &str);
-        FF_PRINT_FORMAT_CHECKED(FF_KERNEL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]){
-            FF_FORMAT_ARG(info->name, "sysname"),
-            FF_FORMAT_ARG(info->release, "release"),
-            FF_FORMAT_ARG(info->version, "version"),
-            FF_FORMAT_ARG(info->architecture, "arch"),
-            FF_FORMAT_ARG(str, "page-size"),
-        }));
+        FF_PRINT_FORMAT_CHECKED(FF_MODULE_GET_DISPLAY_NAME(Kernel), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]) {
+                                                                                                           FF_ARG(info->name, "sysname"),
+                                                                                                           FF_ARG(info->release, "release"),
+                                                                                                           FF_ARG(info->version, "version"),
+                                                                                                           FF_ARG(info->architecture, "arch"),
+                                                                                                           FF_ARG(str, "page-size"),
+                                                                                                       }));
     }
 
     return true;
 }
 
-void ffParseKernelJsonObject(FFKernelOptions* options, yyjson_val* module)
-{
+void ffParseKernelJsonObject(FFKernelOptions* options, yyjson_val* module) {
     yyjson_val *key, *val;
     size_t idx, max;
-    yyjson_obj_foreach(module, idx, max, key, val)
-    {
-        if (ffJsonConfigParseModuleArgs(key, val, &options->moduleArgs))
+    yyjson_obj_foreach (module, idx, max, key, val) {
+        if (ffJsonConfigParseModuleArgs(key, val, &options->moduleArgs)) {
             continue;
+        }
 
-        ffPrintError(FF_KERNEL_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", unsafe_yyjson_get_str(key));
+        ffPrintError(FF_MODULE_GET_DISPLAY_NAME(Kernel), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", unsafe_yyjson_get_str(key));
     }
 }
 
-void ffGenerateKernelJsonConfig(FFKernelOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
-{
+void ffGenerateKernelJsonConfig(FFKernelOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module) {
     ffJsonConfigGenerateModuleArgsConfig(doc, module, &options->moduleArgs);
 }
 
-bool ffGenerateKernelJsonResult(FF_MAYBE_UNUSED FFKernelOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module)
-{
+bool ffGenerateKernelJsonResult([[maybe_unused]] FFKernelOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module) {
     const FFPlatformSysinfo* info = &instance.state.platform.sysinfo;
 
     yyjson_mut_val* obj = yyjson_mut_obj_add_obj(doc, module, "result");
@@ -60,19 +53,39 @@ bool ffGenerateKernelJsonResult(FF_MAYBE_UNUSED FFKernelOptions* options, yyjson
     return true;
 }
 
-void ffInitKernelOptions(FFKernelOptions* options)
-{
+void ffInitKernelOptions(FFKernelOptions* options) {
     ffOptionInitModuleArg(&options->moduleArgs, "");
 }
 
-void ffDestroyKernelOptions(FFKernelOptions* options)
-{
+void ffDestroyKernelOptions(FFKernelOptions* options) {
     ffOptionDestroyModuleArg(&options->moduleArgs);
 }
 
 FFModuleBaseInfo ffKernelModuleInfo = {
-    .name = FF_KERNEL_MODULE_NAME,
+    .name = "Kernel",
     .description = "Print system kernel version",
+    .displayName = {
+        .en = "Kernel",
+        .ar = "النواة",
+        .cs = "Jádro",
+        .de = "Kernel",
+        .es = "Kernel",
+        .fr = "Kernel",
+        .gl = "Kernel",
+        .he = "ליבה",
+        .id = "Kernel",
+        .it = "Kernel",
+        .ja = "カーネル",
+        .ko = "커널",
+        .pl = "Jądro",
+        .pt = "Kernel",
+        .ru = "Ядро",
+        .tr = "Çekirdek",
+        .uk = "Ядро",
+        .vi = "Nhân",
+        .zh_CN = "内核",
+        .zh_TW = "核心",
+    },
     .initOptions = (void*) ffInitKernelOptions,
     .destroyOptions = (void*) ffDestroyKernelOptions,
     .parseJsonObject = (void*) ffParseKernelJsonObject,
@@ -80,11 +93,12 @@ FFModuleBaseInfo ffKernelModuleInfo = {
     .generateJsonResult = (void*) ffGenerateKernelJsonResult,
     .generateJsonConfig = (void*) ffGenerateKernelJsonConfig,
     .formatArgs = FF_FORMAT_ARG_LIST(((FFModuleFormatArg[]) {
-        {"Sysname", "sysname"},
-        {"Release", "release"},
-        {"Version", "version"},
-        {"Architecture", "arch"},
-        {"Display version", "display-version"},
-        {"Page size", "page-size"},
-    }))
+        { "Sysname", "sysname" },
+        { "Release", "release" },
+        { "Version", "version" },
+        { "Architecture", "arch" },
+        { "Display version", "display-version" },
+        { "Page size", "page-size" },
+    })),
+    .defaultOrder = 9,
 };

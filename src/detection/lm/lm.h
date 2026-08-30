@@ -3,10 +3,9 @@
 #include "fastfetch.h"
 #include "modules/lm/option.h"
 
-typedef struct FFLMResult
-{
+typedef struct FFLMResult {
     FFstrbuf service;
-    FFstrbuf type;
+    FFstrbuf prettyName;
     FFstrbuf version;
 } FFLMResult;
 
